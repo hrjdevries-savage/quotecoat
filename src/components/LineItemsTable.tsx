@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { LineItem } from '@/types';
 import { formatFileSize } from '@/utils/helpers';
+import { AttachmentPreview } from './AttachmentPreview';
 
 export function LineItemsTable() {
   const { 
@@ -201,6 +202,14 @@ export function LineItemsTable() {
           </div>
         </div>
       </Card>
+      
+      <AttachmentPreview
+        attachment={showPreviewId ? currentDraft.attachments.find(att => 
+          currentDraft.lineItems.find(item => item.id === showPreviewId)?.attachmentId === att.id
+        ) || null : null}
+        isOpen={!!showPreviewId}
+        onClose={() => setShowPreviewId(null)}
+      />
     </div>
   );
 }
