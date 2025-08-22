@@ -21,30 +21,39 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
     const isPDF = attachment.mimeType === 'application/pdf';
     const isCAD = /\.(step|stp|iges|igs|stl|obj|3ds|fbx|dxf)$/i.test(attachment.fileName);
 
-    if (isPDF && pdfContainerRef.current && attachment.blobUrl) {
+    if (isPDF && attachment.blobUrl) {
+      console.log('Loading PDF:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
+      
       // Set up PDF.js worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       
       pdfjsLib.getDocument(attachment.blobUrl).promise.then((pdf) => {
-        pdf.getPage(1).then((page) => {
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-          
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          
-          const renderContext = {
-            canvasContext: canvas.getContext('2d')!,
-            viewport: viewport
-          };
-          
-          page.render(renderContext);
+        console.log('PDF loaded successfully, pages:', pdf.numPages);
+        return pdf.getPage(1);
+      }).then((page) => {
+        console.log('First page loaded');
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = canvasRef.current;
+        if (!canvas) {
+          console.error('Canvas ref not available');
+          return;
+        }
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        const renderContext = {
+          canvasContext: canvas.getContext('2d')!,
+          viewport: viewport
+        };
+        
+        page.render(renderContext).promise.then(() => {
+          console.log('PDF rendered successfully');
         });
       }).catch((error) => {
         console.error('Error loading PDF:', error);
         if (pdfContainerRef.current) {
-          pdfContainerRef.current.innerHTML = '<p class="text-destructive">Error loading PDF preview</p>';
+          pdfContainerRef.current.innerHTML = '<p class="text-destructive p-4">Error loading PDF preview: ' + error.message + '</p>';
         }
       });
     } else if (isCAD && attachment.blobUrl) {
@@ -133,6 +142,9 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   Grootte: {(attachment.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Type: {attachment.mimeType} | PDF: {isPDF.toString()} | CAD: {isCAD.toString()}
                 </p>
               </div>
             </div>
