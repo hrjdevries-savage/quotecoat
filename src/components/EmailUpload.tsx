@@ -12,6 +12,72 @@ export function EmailUpload() {
   const { toast } = useToast();
   const { setDraft, generateQuoteNumber } = useQuoteStore();
 
+  const parseEmailFile = async (file: File) => {
+    const text = await file.text();
+    const attachments: Attachment[] = [];
+    
+    // Basic email parsing for attachments
+    // Look for base64 encoded attachments in the email
+    const attachmentRegex = /Content-Disposition:\s*attachment[^;]*;\s*filename[*]?=(?:"([^"]+)"|([^;\s]+))/gi;
+    const base64Regex = /Content-Transfer-Encoding:\s*base64\s*\n\n([A-Za-z0-9+/=\s]+)/gi;
+    
+    let match;
+    const attachmentInfo: Array<{name: string, base64: string}> = [];
+    
+    // Extract attachment filenames
+    const filenames: string[] = [];
+    while ((match = attachmentRegex.exec(text)) !== null) {
+      const filename = match[1] || match[2];
+      if (filename) filenames.push(filename);
+    }
+    
+    // Extract base64 content
+    const base64Contents: string[] = [];
+    while ((match = base64Regex.exec(text)) !== null) {
+      const base64Content = match[1].replace(/\s/g, '');
+      base64Contents.push(base64Content);
+    }
+    
+    // Match filenames with base64 content
+    for (let i = 0; i < Math.min(filenames.length, base64Contents.length); i++) {
+      try {
+        const base64 = base64Contents[i];
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let j = 0; j < byteCharacters.length; j++) {
+          byteNumbers[j] = byteCharacters.charCodeAt(j);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        
+        // Determine MIME type based on file extension
+        const filename = filenames[i];
+        let mimeType = 'application/octet-stream';
+        if (filename.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+        else if (filename.toLowerCase().match(/\.(jpg|jpeg)$/)) mimeType = 'image/jpeg';
+        else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        else if (filename.toLowerCase().match(/\.(step|stp)$/)) mimeType = 'application/step';
+        else if (filename.toLowerCase().match(/\.(iges|igs)$/)) mimeType = 'application/iges';
+        
+        const blob = new Blob([byteArray], { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const attachment: Attachment = {
+          id: `att_${Date.now()}_${i}`,
+          fileName: filename,
+          mimeType: mimeType,
+          sizeBytes: byteArray.length,
+          blobUrl: blobUrl,
+        };
+        
+        attachments.push(attachment);
+      } catch (error) {
+        console.error('Error parsing attachment:', filenames[i], error);
+      }
+    }
+    
+    return attachments;
+  };
+
   const processFiles = useCallback(async (files: FileList) => {
     setIsProcessing(true);
     
@@ -22,29 +88,52 @@ export function EmailUpload() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // Create attachment
-        const attachment: Attachment = {
-          id: `att_${Date.now()}_${i}`,
-          fileName: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          sizeBytes: file.size,
-          blobUrl: URL.createObjectURL(file),
-          file: file,
-        };
-        
-        attachments.push(attachment);
+        // Check if this is an email file
+        if (file.name.toLowerCase().endsWith('.eml') || file.name.toLowerCase().endsWith('.msg')) {
+          // Parse email and extract attachments
+          const emailAttachments = await parseEmailFile(file);
+          
+          for (let j = 0; j < emailAttachments.length; j++) {
+            const attachment = emailAttachments[j];
+            attachments.push(attachment);
 
-        // Create corresponding line item
-        const lineItem: LineItem = {
-          id: `item_${Date.now()}_${i}`,
-          attachmentId: attachment.id,
-          fileName: file.name,
-          description: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-          drawingNumber: '',
-          price: null,
-        };
-        
-        lineItems.push(lineItem);
+            // Create line item for each attachment
+            const lineItem: LineItem = {
+              id: `item_${Date.now()}_${j}`,
+              attachmentId: attachment.id,
+              fileName: attachment.fileName,
+              description: attachment.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
+              drawingNumber: '',
+              price: null,
+            };
+            
+            lineItems.push(lineItem);
+          }
+        } else {
+          // Regular file upload - treat as attachment
+          const attachment: Attachment = {
+            id: `att_${Date.now()}_${i}`,
+            fileName: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            sizeBytes: file.size,
+            blobUrl: URL.createObjectURL(file),
+            file: file,
+          };
+          
+          attachments.push(attachment);
+
+          // Create corresponding line item
+          const lineItem: LineItem = {
+            id: `item_${Date.now()}_${i}`,
+            attachmentId: attachment.id,
+            fileName: file.name,
+            description: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+            drawingNumber: '',
+            price: null,
+          };
+          
+          lineItems.push(lineItem);
+        }
       }
 
       // Create new draft
