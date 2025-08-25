@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, Trash2, Plus, Copy, DollarSign } from 'lucide-react';
+import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,8 @@ export function LineItemsTable() {
     updateLineItem, 
     removeLineItem, 
     addLineItem, 
-    getTotalPrice 
+    getTotalPrice,
+    clearDraft
   } = useQuoteStore();
   
   const [showPreviewId, setShowPreviewId] = useState<string | null>(null);
@@ -67,10 +68,16 @@ export function LineItemsTable() {
             Bewerk omschrijvingen, tekeningnummers en prijzen
           </p>
         </div>
-        <Button onClick={handleAddEmptyRow} variant="outline">
-          <Plus className="mr-2 h-4 w-4" />
-          Regel toevoegen
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={clearDraft} variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Nieuwe Offerte
+          </Button>
+          <Button onClick={handleAddEmptyRow} variant="outline">
+            <Plus className="mr-2 h-4 w-4" />
+            Regel toevoegen
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
