@@ -21,7 +21,7 @@ export function EmailUpload() {
     // Basic email parsing for attachments
     // Look for base64 encoded attachments in the email
     const attachmentRegex = /Content-Disposition:\s*attachment[^;]*;\s*filename[*]?=(?:"([^"]+)"|([^;\s]+))/gi;
-    const base64Regex = /Content-Transfer-Encoding:\s*base64\s*\n\n([A-Za-z0-9+/=\s]+)/gi;
+    const base64Regex = /Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n([A-Za-z0-9+/=\r\n\s]+?)(?=\r?\n--|\r?\nContent-)/gi;
     
     let match;
     const attachmentInfo: Array<{name: string, base64: string}> = [];
@@ -40,8 +40,9 @@ export function EmailUpload() {
     
     // Extract base64 content
     const base64Contents: string[] = [];
+    base64Regex.lastIndex = 0; // Reset regex
     while ((match = base64Regex.exec(text)) !== null) {
-      const base64Content = match[1].replace(/\s/g, '');
+      const base64Content = match[1].replace(/[\r\n\s]/g, '');
       console.log('Found base64 content, length:', base64Content.length);
       base64Contents.push(base64Content);
     }
