@@ -13,7 +13,9 @@ export function EmailUpload() {
   const { setDraft, generateQuoteNumber } = useQuoteStore();
 
   const parseEmailFile = async (file: File) => {
+    console.log('Parsing email file:', file.name, file.size, file.type);
     const text = await file.text();
+    console.log('Email content length:', text.length);
     const attachments: Attachment[] = [];
     
     // Basic email parsing for attachments
@@ -28,18 +30,28 @@ export function EmailUpload() {
     const filenames: string[] = [];
     while ((match = attachmentRegex.exec(text)) !== null) {
       const filename = match[1] || match[2];
-      if (filename) filenames.push(filename);
+      if (filename) {
+        console.log('Found attachment filename:', filename);
+        filenames.push(filename);
+      }
     }
+    
+    console.log('Total filenames found:', filenames.length);
     
     // Extract base64 content
     const base64Contents: string[] = [];
     while ((match = base64Regex.exec(text)) !== null) {
       const base64Content = match[1].replace(/\s/g, '');
+      console.log('Found base64 content, length:', base64Content.length);
       base64Contents.push(base64Content);
     }
     
+    console.log('Total base64 contents found:', base64Contents.length);
+    
     // Match filenames with base64 content
+    console.log('Matching filenames with base64 content...');
     for (let i = 0; i < Math.min(filenames.length, base64Contents.length); i++) {
+      console.log(`Processing attachment ${i + 1}:`, filenames[i]);
       try {
         const base64 = base64Contents[i];
         const byteCharacters = atob(base64);
@@ -69,12 +81,16 @@ export function EmailUpload() {
           blobUrl: blobUrl,
         };
         
+        
+        console.log(`Created attachment:`, attachment.fileName, attachment.mimeType, attachment.sizeBytes);
         attachments.push(attachment);
       } catch (error) {
         console.error('Error parsing attachment:', filenames[i], error);
       }
     }
     
+    
+    console.log('Email parsing complete. Attachments found:', attachments.length);
     return attachments;
   };
 
@@ -155,9 +171,17 @@ export function EmailUpload() {
 
       setDraft(draft);
       
+      console.log('Processing complete:', {
+        totalFiles: files.length,
+        attachmentsFound: attachments.length,
+        lineItemsCreated: lineItems.length,
+        attachments: attachments.map(a => ({ id: a.id, fileName: a.fileName, mimeType: a.mimeType })),
+        lineItems: lineItems.map(l => ({ id: l.id, fileName: l.fileName, description: l.description }))
+      });
+      
       toast({
         title: 'Bestanden verwerkt',
-        description: `${files.length} bestand(en) toegevoegd als regelitems`,
+        description: `${lineItems.length} regelitem(s) aangemaakt uit ${attachments.length} bijlage(s)`,
       });
     } catch (error) {
       console.error('Error processing files:', error);
