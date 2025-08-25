@@ -18,78 +18,73 @@ export function EmailUpload() {
     console.log('Email content length:', text.length);
     const attachments: Attachment[] = [];
     
-    // Basic email parsing for attachments
-    // Look for base64 encoded attachments in the email
+    // Basic email parsing for attachments - improved regex patterns
     const attachmentRegex = /Content-Disposition:\s*attachment[^;]*;\s*filename[*]?=(?:"([^"]+)"|([^;\s]+))/gi;
-    const base64Regex = /Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n([A-Za-z0-9+/=\r\n\s]+?)(?=\r?\n--|\r?\nContent-)/gi;
+    // More comprehensive base64 regex that looks for the complete attachment block
+    const attachmentBlockRegex = /Content-Disposition:\s*attachment[^]*?filename[*]?=(?:"([^"]+)"|([^;\s]+))[^]*?Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n([A-Za-z0-9+/=\r\n\s]+?)(?=\r?\n--|\r?\nContent-|$)/gi;
     
+    
+    // Use the improved regex to extract complete attachment blocks
     let match;
-    const attachmentInfo: Array<{name: string, base64: string}> = [];
-    
-    // Extract attachment filenames
-    const filenames: string[] = [];
-    while ((match = attachmentRegex.exec(text)) !== null) {
+    while ((match = attachmentBlockRegex.exec(text)) !== null) {
       const filename = match[1] || match[2];
-      if (filename) {
-        console.log('Found attachment filename:', filename);
-        filenames.push(filename);
-      }
-    }
-    
-    console.log('Total filenames found:', filenames.length);
-    
-    // Extract base64 content
-    const base64Contents: string[] = [];
-    base64Regex.lastIndex = 0; // Reset regex
-    while ((match = base64Regex.exec(text)) !== null) {
-      const base64Content = match[1].replace(/[\r\n\s]/g, '');
-      console.log('Found base64 content, length:', base64Content.length);
-      base64Contents.push(base64Content);
-    }
-    
-    console.log('Total base64 contents found:', base64Contents.length);
-    
-    // Match filenames with base64 content
-    console.log('Matching filenames with base64 content...');
-    for (let i = 0; i < Math.min(filenames.length, base64Contents.length); i++) {
-      console.log(`Processing attachment ${i + 1}:`, filenames[i]);
-      try {
-        const base64 = base64Contents[i];
-        const byteCharacters = atob(base64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let j = 0; j < byteCharacters.length; j++) {
-          byteNumbers[j] = byteCharacters.charCodeAt(j);
+      const base64Content = match[3].replace(/[\r\n\s]/g, '');
+      
+      console.log('Found complete attachment:', filename, 'Base64 length:', base64Content.length);
+      
+      if (filename && base64Content) {
+        try {
+          // Add padding if needed
+          const paddedBase64 = base64Content + '='.repeat((4 - base64Content.length % 4) % 4);
+          
+          const byteCharacters = atob(paddedBase64);
+          console.log('Decoded byte length for', filename, ':', byteCharacters.length);
+          
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let j = 0; j < byteCharacters.length; j++) {
+            byteNumbers[j] = byteCharacters.charCodeAt(j);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          
+          // Check if it's a valid PDF (starts with %PDF)
+          const isPDF = filename.toLowerCase().endsWith('.pdf');
+          if (isPDF) {
+            const pdfHeader = String.fromCharCode.apply(null, Array.from(byteArray.slice(0, 4)));
+            console.log('PDF header check for', filename, ':', pdfHeader);
+            if (!pdfHeader.startsWith('%PDF')) {
+              console.warn('Invalid PDF header for:', filename, 'Header:', pdfHeader);
+              continue; // Skip this attachment if it's not a valid PDF
+            }
+          }
+          
+          // Determine MIME type based on file extension
+          let mimeType = 'application/octet-stream';
+          if (filename.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+          else if (filename.toLowerCase().match(/\.(jpg|jpeg)$/)) mimeType = 'image/jpeg';
+          else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+          else if (filename.toLowerCase().match(/\.(step|stp)$/)) mimeType = 'application/step';
+          else if (filename.toLowerCase().match(/\.(iges|igs)$/)) mimeType = 'application/iges';
+          
+          const blob = new Blob([byteArray], { type: mimeType });
+          const blobUrl = URL.createObjectURL(blob);
+          
+          console.log('Created blob for', filename, 'URL:', blobUrl, 'Size:', blob.size);
+          
+          const attachment: Attachment = {
+            id: `att_${Date.now()}_${attachments.length}`,
+            fileName: filename,
+            mimeType: mimeType,
+            sizeBytes: byteArray.length,
+            blobUrl: blobUrl,
+          };
+          
+          attachments.push(attachment);
+          console.log('Successfully processed attachment:', filename);
+        } catch (error) {
+          console.error('Error processing attachment:', filename, error);
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        
-        // Determine MIME type based on file extension
-        const filename = filenames[i];
-        let mimeType = 'application/octet-stream';
-        if (filename.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
-        else if (filename.toLowerCase().match(/\.(jpg|jpeg)$/)) mimeType = 'image/jpeg';
-        else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-        else if (filename.toLowerCase().match(/\.(step|stp)$/)) mimeType = 'application/step';
-        else if (filename.toLowerCase().match(/\.(iges|igs)$/)) mimeType = 'application/iges';
-        
-        const blob = new Blob([byteArray], { type: mimeType });
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const attachment: Attachment = {
-          id: `att_${Date.now()}_${i}`,
-          fileName: filename,
-          mimeType: mimeType,
-          sizeBytes: byteArray.length,
-          blobUrl: blobUrl,
-        };
-        
-        
-        console.log(`Created attachment:`, attachment.fileName, attachment.mimeType, attachment.sizeBytes);
-        attachments.push(attachment);
-      } catch (error) {
-        console.error('Error parsing attachment:', filenames[i], error);
       }
     }
-    
     
     console.log('Email parsing complete. Attachments found:', attachments.length);
     return attachments;
