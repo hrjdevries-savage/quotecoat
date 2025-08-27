@@ -93,11 +93,11 @@ export function LineItemsTable() {
                 <th className="text-left p-2 font-medium text-xs w-12">Preview</th>
                 <th className="text-left p-2 font-medium text-xs min-w-[140px]">Bestand</th>
                 <th className="text-left p-2 font-medium text-xs min-w-[160px]">Omschrijving</th>
-                <th className="text-left p-2 font-medium text-xs min-w-[100px]">Tekeningnr.</th>
+                <th className="text-left p-2 font-medium text-xs w-20">Tekeningnr.</th>
                 <th className="text-left p-2 font-medium text-xs min-w-[100px]">Behandeling</th>
-                <th className="text-left p-2 font-medium text-xs w-16">L (mm)</th>
-                <th className="text-left p-2 font-medium text-xs w-16">B (mm)</th>
-                <th className="text-left p-2 font-medium text-xs w-16">H (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-20">L (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-20">B (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-20">H (mm)</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Prijs (€)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
@@ -255,10 +255,6 @@ export function LineItemsTable() {
         <div className="border-t bg-muted/30 p-4">
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Copy className="mr-2 h-4 w-4" />
-                Kopieer bestandsnamen
-              </Button>
               <Button variant="outline" size="sm">
                 <DollarSign className="mr-2 h-4 w-4" />
                 Wis alle prijzen
