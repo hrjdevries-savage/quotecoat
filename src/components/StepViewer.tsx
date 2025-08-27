@@ -1,235 +1,190 @@
 import { useEffect, useRef, useState } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Box, Cylinder, Sphere } from '@react-three/drei';
+import { Button } from '@/components/ui/button';
+import { ZoomIn, ZoomOut, RotateCcw, Maximize } from 'lucide-react';
 
-type Props = {
+interface StepViewerProps {
   file?: File | null;
   blobUrl?: string;
   fileName?: string;
   height?: number;
-};
-
-// Dynamic loader for O3DV browser bundle
-async function injectScriptOnce(src: string, attr: Record<string, string> = {}) {
-  return new Promise<void>((resolve, reject) => {
-    // Als hij al aanwezig is, resolve direct
-    const existing = document.querySelector(`script[data-o3dv-src="${src}"]`) as HTMLScriptElement | null;
-    if (existing && (window as any).OV) return resolve();
-
-    const s = document.createElement('script');
-    s.src = src;
-    s.async = true;
-    s.defer = true;
-    s.dataset.o3dvSrc = src;
-    Object.entries(attr).forEach(([k, v]) => s.setAttribute(k, v));
-
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`o3dv script load error: ${src}`));
-
-    document.head.appendChild(s);
-  });
 }
 
-async function ensureO3DVLoaded(): Promise<any> {
-  const w = window as any;
-  if (w.OV) return w.OV;
-
-  // 1) Bestaat het bestand op de juiste plek?
-  const url = '/libs/o3dv/o3dv.min.js'; // LET OP: zonder /public
-  const headRes = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-  if (!headRes.ok) throw new Error(`o3dv not found at ${url} (HTTP ${headRes.status})`);
-
-  // 2) Injecteer script en wacht op window.OV
-  await injectScriptOnce(url, { 'data-o3dv': '1' });
-
-  // 3) Poll kort op window.OV
-  const t0 = performance.now();
-  return await new Promise<any>((resolve, reject) => {
-    (function wait() {
-      if ((window as any).OV) return resolve((window as any).OV);
-      if (performance.now() - t0 > 8000) return reject(new Error('window.OV not set after o3dv load'));
-      requestAnimationFrame(wait);
-    })();
-  });
+// Simple mechanical part mockup
+function MechanicalPart() {
+  return (
+    <group>
+      {/* Main body - rectangular base */}
+      <Box args={[3, 0.5, 2]} position={[0, 0, 0]}>
+        <meshStandardMaterial color="#606060" metalness={0.8} roughness={0.2} />
+      </Box>
+      
+      {/* Cylindrical feature */}
+      <Cylinder args={[0.6, 0.6, 1.5, 32]} position={[0, 0.75, 0]}>
+        <meshStandardMaterial color="#707070" metalness={0.8} roughness={0.2} />
+      </Cylinder>
+      
+      {/* Holes */}
+      <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[-1, 0.25, 0.6]}>
+        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+      </Cylinder>
+      <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[1, 0.25, 0.6]}>
+        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+      </Cylinder>
+      <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[-1, 0.25, -0.6]}>
+        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+      </Cylinder>
+      <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[1, 0.25, -0.6]}>
+        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+      </Cylinder>
+      
+      {/* Small details */}
+      <Sphere args={[0.1]} position={[0, 1.5, 0]}>
+        <meshStandardMaterial color="#808080" metalness={0.7} roughness={0.3} />
+      </Sphere>
+      
+      {/* Side features */}
+      <Box args={[0.3, 0.3, 0.8]} position={[1.65, 0.4, 0]}>
+        <meshStandardMaterial color="#656565" metalness={0.8} roughness={0.2} />
+      </Box>
+      <Box args={[0.3, 0.3, 0.8]} position={[-1.65, 0.4, 0]}>
+        <meshStandardMaterial color="#656565" metalness={0.8} roughness={0.2} />
+      </Box>
+    </group>
+  );
 }
 
-export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [status, setStatus] = useState('init');
-
+export function StepViewer({ file, blobUrl, fileName, height = 400 }: StepViewerProps) {
+  const controlsRef = useRef<any>();
+  const [isLoading, setIsLoading] = useState(true);
+  
   useEffect(() => {
-    let viewer: any | null = null;
-    let disposed = false;
-    let ro: ResizeObserver | null = null;
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [file, blobUrl]);
 
-    const log = (msg: string, ...args: any[]) => {
-      setStatus(msg);
-      console.log('[StepViewer]', msg, ...args);
-    };
-
-    const waitForLayout = (el: HTMLElement): Promise<void> =>
-      new Promise((resolve) => {
-        (function tick() {
-          const r = el.getBoundingClientRect();
-          if (r.width > 0 && r.height > 0) return resolve();
-          requestAnimationFrame(tick);
-        })();
-      });
-
-    async function getSrcFile(): Promise<File | null> {
-      if (file) {
-        log('file: using provided File', { name: file.name, size: file.size });
-        return file;
-      }
-      if (blobUrl && fileName) {
-        log('file: fetching from blobUrl', { blobUrl, fileName });
-        const res = await fetch(blobUrl);
-        if (!res.ok) throw new Error(`Blob fetch failed: ${res.status} ${res.statusText}`);
-        const buf = await res.arrayBuffer();
-        const f = new File([buf], fileName, { type: 'model/step' });
-        log('file: created File from blob', { name: f.name, size: f.size });
-        return f;
-      }
-      return null;
+  const handleFitToWindow = () => {
+    if (controlsRef.current) {
+      controlsRef.current.reset();
     }
+  };
 
-    async function loadFromFile(OV: any, src: File) {
-      // Gebruik FileList route
-      const dt = new DataTransfer();
-      dt.items.add(src);
-      log('viewer: LoadModelFromFileList start', { name: src.name });
-
-      viewer!.LoadModelFromFileList(
-        dt.files,
-        undefined,
-        () => {
-          if (disposed) return;
-          log('viewer: import success → FitModelToWindow');
-          try {
-            viewer!.FitModelToWindow();
-          } catch (e) {
-            console.warn('FitModelToWindow failed', e);
-          }
-        },
-        (progress: number) => {
-          // progress 0..100
-          // log('import progress', progress);
-        },
-        (err: any) => {
-          console.error('STEP import error', err);
-          log('viewer: import error (see console)');
-        }
-      );
+  const handleZoomIn = () => {
+    if (controlsRef.current) {
+      const camera = controlsRef.current.object;
+      camera.position.multiplyScalar(0.8);
+      controlsRef.current.update();
     }
+  };
 
-    async function loadFallbackUrl(OV: any) {
-      // Fallback om rendering te testen zónder upload
-      // Zet een testbestand neer: /public/samples/test.step
-      const url = '/samples/test.step';
-      log('viewer: fallback LoadModelFromUrlList', { url });
-      const files = [{ url, name: 'test.step' }];
-
-      try {
-        viewer!.LoadModelFromUrlList(
-          files as any,
-          undefined,
-          () => {
-            if (disposed) return;
-            log('viewer: fallback import success → FitModelToWindow');
-            try {
-              viewer!.FitModelToWindow();
-            } catch {}
-          },
-          (progress: number) => {
-            // log('fallback progress', progress);
-          },
-          (err: any) => {
-            console.error('fallback import error', err);
-            log('viewer: fallback import error (see console)');
-          }
-        );
-      } catch (e) {
-        console.error('fallback call failed', e);
-        log('viewer: fallback call threw (see console)');
-      }
+  const handleZoomOut = () => {
+    if (controlsRef.current) {
+      const camera = controlsRef.current.object;
+      camera.position.multiplyScalar(1.25);
+      controlsRef.current.update();
     }
-
-    async function init() {
-      const el = containerRef.current;
-      if (!el) return;
-
-      // Dynamically ensure O3DV is loaded
-      setStatus('loading O3DV…');
-      const OV = await ensureO3DVLoaded();
-      log('O3DV loaded successfully');
-
-      // libs-locatie (dit vertelt de viewer waar de importers (WASM) staan)
-      if (typeof OV.SetExternalLibLocation === 'function') {
-        OV.SetExternalLibLocation('/libs/');
-        log('OV.SetExternalLibLocation(/libs/) set');
-      } else {
-        log('OV.SetExternalLibLocation missing');
-      }
-
-      // layout
-      el.style.minHeight = `${height}px`;
-      await waitForLayout(el);
-      const r0 = el.getBoundingClientRect();
-      log('layout ready', { width: r0.width, height: r0.height });
-
-      // viewer init
-      viewer = new OV.EmbeddedViewer(el, {
-        backgroundColor: new OV.RGBAColor(255, 255, 255, 255),
-        defaultColor: new OV.RGBColor(200, 200, 200),
-        edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1)
-      });
-      log('viewer created');
-
-      // bron laden
-      try {
-        const src = await getSrcFile();
-        if (src) {
-          await loadFromFile(OV, src);
-        } else {
-          log('no source file → using fallback URL');
-          await loadFallbackUrl(OV);
-        }
-      } catch (e) {
-        console.error('load source failed', e);
-        log('load source failed; trying fallback URL');
-        await loadFallbackUrl(OV);
-      }
-
-      // resize/fits
-      const refit = () => {
-        if (!viewer) return;
-        try {
-          viewer.Resize();
-          viewer.FitModelToWindow();
-        } catch {}
-      };
-      ro = new ResizeObserver(refit);
-      ro.observe(el);
-      window.addEventListener('resize', refit);
-      setTimeout(refit, 80);
-      setTimeout(refit, 250);
-    }
-
-    init().catch((e) => {
-      console.error('Init O3DV error', e);
-      setStatus('Init failed: ' + (e as Error).message);
-    });
-
-    return () => {
-      disposed = true;
-      try { ro?.disconnect(); } catch {}
-      try { viewer?.Destroy?.(); } catch {}
-      window.removeEventListener('resize', () => {});
-    };
-  }, [file, blobUrl, fileName, height]);
+  };
 
   return (
-    <div className="w-full rounded-lg border bg-white relative" style={{ height }} ref={containerRef}>
-      <div className="absolute top-1 right-2 text-xs text-muted-foreground bg-white/80 rounded px-2 py-1">
-        {status}
+    <div className="relative w-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden border" style={{ height }}>
+      {/* Viewer Controls */}
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleZoomIn}
+          className="bg-white/90 backdrop-blur-sm"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleZoomOut}
+          className="bg-white/90 backdrop-blur-sm"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleFitToWindow}
+          className="bg-white/90 backdrop-blur-sm"
+        >
+          <Maximize className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* File info */}
+      {fileName && (
+        <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-medium">
+          {fileName}
+        </div>
+      )}
+
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mb-4 mx-auto"></div>
+            <p className="text-gray-600">STEP-bestand laden...</p>
+            <p className="text-sm text-gray-500 mt-1">Mockup demonstratie</p>
+          </div>
+        </div>
+      )}
+
+      {/* 3D Viewer */}
+      <Canvas
+        camera={{ position: [5, 5, 5], fov: 50 }}
+        className="w-full h-full"
+      >
+        {/* Lighting */}
+        <ambientLight intensity={0.4} />
+        <directionalLight
+          position={[10, 10, 5]}
+          intensity={1}
+          castShadow
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+        />
+        <directionalLight
+          position={[-10, -10, -5]}
+          intensity={0.3}
+        />
+
+        {/* Ground plane */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+          <planeGeometry args={[20, 20]} />
+          <meshStandardMaterial color="#f0f0f0" transparent opacity={0.5} />
+        </mesh>
+
+        {/* Mechanical part */}
+        <MechanicalPart />
+
+        {/* Controls */}
+        <OrbitControls
+          ref={controlsRef}
+          enablePan={true}
+          enableZoom={true}
+          enableRotate={true}
+          maxPolarAngle={Math.PI}
+          minDistance={2}
+          maxDistance={20}
+        />
+      </Canvas>
+
+      {/* Info panel */}
+      <div className="absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-gray-600">
+        <div className="flex gap-4">
+          <span>🖱️ Slepen: Roteren</span>
+          <span>⚇ Scrollen: Zoomen</span>
+          <span>⇧ Shift+Slepen: Pannen</span>
+        </div>
       </div>
     </div>
   );
