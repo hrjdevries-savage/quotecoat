@@ -6,49 +6,49 @@
 
 @layer base {
   :root {
-    /* Modern dark-first palette inspired by Unmuted/Duna/Hubs */
-    --background: 222 15% 8%;
-    --foreground: 210 20% 96%;
+    /* Fixed modern palette with proper contrast */
+    --background: 0 0% 100%;
+    --foreground: 222 15% 15%;
 
-    --card: 222 15% 10%;
-    --card-foreground: 210 20% 96%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 15% 15%;
 
-    --popover: 222 15% 10%;
-    --popover-foreground: 210 20% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 15% 15%;
 
     /* Primary - Bright accent color */
-    --primary: 142 100% 76%;
-    --primary-foreground: 222 15% 8%;
-    --primary-hover: 142 100% 70%;
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 142 70% 40%;
 
     /* Secondary colors */
-    --secondary: 222 15% 15%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 15% 15%;
 
-    --muted: 222 15% 12%;
-    --muted-foreground: 210 15% 60%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 260 80% 65%;
-    --accent-foreground: 210 20% 96%;
+    --accent: 260 60% 50%;
+    --accent-foreground: 0 0% 100%;
 
     /* Business colors */
-    --success: 142 76% 56%;
-    --success-foreground: 222 15% 8%;
-    --warning: 45 93% 67%;
-    --warning-foreground: 222 15% 8%;
-    --destructive: 0 72% 60%;
-    --destructive-foreground: 210 20% 96%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Borders and inputs */
-    --border: 222 15% 20%;
-    --input: 222 15% 15%;
-    --ring: 142 100% 76%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 142 70% 45%;
 
-    /* Advanced gradients inspired by the reference sites */
-    --gradient-primary: linear-gradient(135deg, hsl(142 100% 76%), hsl(260 80% 65%));
-    --gradient-hero: linear-gradient(135deg, hsl(222 15% 8%) 0%, hsl(260 30% 15%) 50%, hsl(142 50% 20%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(222 15% 10%) 0%, hsl(222 15% 12%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(222 15% 8%), hsl(222 15% 10%));
+    /* Simple working gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(142 70% 45%), hsl(260 60% 50%));
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 50%, hsl(142 20% 96%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 98%));
     
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
