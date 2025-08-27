@@ -86,6 +86,10 @@ export function PdfGenerator() {
         onClose={() => setShowEmailCompose(false)}
         quoteDraft={currentDraft}
         totalPrice={getTotalPrice()}
+        templateRef={templateRef}
+        onEmailSent={() => {
+          // Optional: Add any logic after email is sent
+        }}
       />
     </div>
   );

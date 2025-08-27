@@ -5,6 +5,7 @@ import { PdfGenerator } from '@/components/PdfGenerator';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { Settings, HelpCircle, ArrowLeft, FileText, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Index = () => {
   const { currentDraft, clearDraft } = useQuoteStore();
@@ -57,10 +58,12 @@ const Index = () => {
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Offertes
-                </Button>
+                <Link to="/quotes">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Offertes
+                  </Button>
+                </Link>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Upload className="h-4 w-4 mr-2" />
                   Files

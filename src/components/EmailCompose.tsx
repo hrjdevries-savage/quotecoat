@@ -7,15 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteDraft } from '@/types';
+import { useQuoteActions } from '@/hooks/useQuoteActions';
 
 interface EmailComposeProps {
   isOpen: boolean;
   onClose: () => void;
   quoteDraft: QuoteDraft;
   totalPrice: number;
+  templateRef: React.RefObject<HTMLDivElement>;
+  onEmailSent?: () => void;
 }
 
-export function EmailCompose({ isOpen, onClose, quoteDraft, totalPrice }: EmailComposeProps) {
+export function EmailCompose({ isOpen, onClose, quoteDraft, totalPrice, templateRef, onEmailSent }: EmailComposeProps) {
   const [emailData, setEmailData] = useState({
     to: quoteDraft.meta.clientEmail || '',
     subject: `Offerte ${quoteDraft.meta.quoteNumber} - ${quoteDraft.meta.clientName}`,
@@ -34,8 +37,9 @@ Uw team`
   });
 
   const { toast } = useToast();
+  const { generateAndSavePdf, sendQuoteEmail, isLoading } = useQuoteActions();
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!emailData.to) {
       toast({
         title: 'Email adres vereist',
@@ -45,20 +49,34 @@ Uw team`
       return;
     }
 
-    // Create mailto link
-    const subject = encodeURIComponent(emailData.subject);
-    const body = encodeURIComponent(emailData.body);
-    const mailto = `mailto:${emailData.to}?subject=${subject}&body=${body}`;
-    
-    // Open email client
-    window.location.href = mailto;
-    
-    toast({
-      title: 'Email geopend',
-      description: 'De email client is geopend met de offerte details.',
-    });
-    
-    onClose();
+    try {
+      // First generate and save PDF, and save quote to database
+      const quoteId = await generateAndSavePdf(quoteDraft, totalPrice, templateRef);
+      
+      if (!quoteId) {
+        toast({
+          title: "Fout",
+          description: "Kon offerte niet opslaan",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Then send the email with PDF attachment
+      const success = await sendQuoteEmail(emailData.to, emailData.subject, emailData.body, quoteId);
+      
+      if (success) {
+        onEmailSent?.();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error sending quote:', error);
+      toast({
+        title: "Fout",
+        description: "Kon offerte niet verzenden",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -141,9 +159,9 @@ Uw team`
           <Button variant="outline" onClick={onClose}>
             Annuleren
           </Button>
-          <Button onClick={handleSend} className="flex items-center gap-2">
+          <Button onClick={handleSend} disabled={isLoading} className="flex items-center gap-2">
             <Send className="h-4 w-4" />
-            Verzenden
+            {isLoading ? 'Verzenden...' : 'Verzenden'}
           </Button>
         </div>
       </DialogContent>
