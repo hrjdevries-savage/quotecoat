@@ -10,7 +10,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Hero Section */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden pb-8">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-transparent" />
         <div className="container relative mx-auto px-4 py-16">
           <div className="max-w-4xl">
@@ -29,17 +29,21 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 pb-16 space-y-12">
-        {!currentDraft ? (
-          <EmailUpload />
-        ) : (
-          <div className="space-y-8">
-            <LineItemsTable />
-            <CustomerInfo />
-            <PdfGenerator />
-          </div>
-        )}
+      {/* Main Content - seamlessly continues the gradient */}
+      <div className="relative">
+        {/* Gradient continuation */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/40 to-background"></div>
+        <div className="container relative mx-auto px-4 pb-16 space-y-12">
+          {!currentDraft ? (
+            <EmailUpload />
+          ) : (
+            <div className="space-y-8">
+              <LineItemsTable />
+              <CustomerInfo />
+              <PdfGenerator />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
