@@ -6,23 +6,22 @@ import { useQuoteStore } from '@/store/useQuoteStore';
 import { Settings, HelpCircle, ArrowLeft, FileText, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-
 const Index = () => {
-  const { currentDraft, clearDraft } = useQuoteStore();
-
-  return (
-    <div className="relative min-h-screen">
+  const {
+    currentDraft,
+    clearDraft
+  } = useQuoteStore();
+  return <div className="relative min-h-screen">
       {/* Global background gradient */}
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/15 via-accent/15 to-accent/15"></div>
       
       
       {/* Conditional Header */}
-      {!currentDraft ? (
-        /* Hero Section for landing page */
-        <div className="relative overflow-hidden pb-8">
+      {!currentDraft ? (/* Hero Section for landing page */
+    <div className="relative overflow-hidden pb-8">
           <div className="container relative mx-auto px-4 py-16">
             <div className="max-w-4xl">
-              <h1 className="mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
+              <h1 className="mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent py-[10px] px-[10px]">
                 Coating quotes made simple
               </h1>
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl leading-relaxed mt-8">
@@ -30,19 +29,12 @@ const Index = () => {
               </p>
             </div>
           </div>
-        </div>
-      ) : (
-        /* Navigation bar for quote editing */
-        <div className="relative border-b border-border/20 bg-background/20 backdrop-blur-md">
+        </div>) : (/* Navigation bar for quote editing */
+    <div className="relative border-b border-border/20 bg-background/20 backdrop-blur-md">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <Button 
-                  onClick={clearDraft}
-                  variant="ghost" 
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <Button onClick={clearDraft} variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Terug naar start
                 </Button>
@@ -74,23 +66,16 @@ const Index = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div>)}
 
       {/* Main Content */}
       <div className={`container mx-auto px-4 pb-16 space-y-12 ${currentDraft ? 'pt-8' : ''}`}>
-        {!currentDraft ? (
-          <EmailUpload />
-        ) : (
-          <div className="space-y-8">
+        {!currentDraft ? <EmailUpload /> : <div className="space-y-8">
             <LineItemsTable />
             <CustomerInfo />
             <PdfGenerator />
-          </div>
-        )}
+          </div>}
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
