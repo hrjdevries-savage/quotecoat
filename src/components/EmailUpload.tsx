@@ -355,19 +355,19 @@ export function EmailUpload() {
   }, [processFiles]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto -mt-12 relative z-10">
       <Card 
-        className={`relative overflow-hidden p-12 border-2 border-dashed transition-all duration-300 ${
+        className={`relative overflow-hidden p-12 border-2 border-dashed backdrop-blur-md transition-all duration-300 ${
           isDragOver 
-            ? 'border-primary bg-primary/5 scale-[1.02] shadow-2xl' 
-            : 'border-border/40 hover:border-primary/50 bg-gradient-card'
+            ? 'border-primary bg-background/40 scale-[1.02] shadow-2xl' 
+            : 'border-primary/30 hover:border-primary/50 bg-background/20'
         } ${isProcessing ? 'opacity-50' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        {/* Background gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50" />
+        {/* Enhanced background with glassmorphism effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background/30 via-background/10 to-background/30 backdrop-blur-sm" />
         
         <div className="relative text-center space-y-8">
           <div className="flex justify-center">
