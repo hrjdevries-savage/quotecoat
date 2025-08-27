@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { Attachment, LineItem, QuoteDraft } from '@/types';
-import { ConnectOutlookButton } from './ConnectOutlookButton';
 
 export function EmailUpload() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -458,14 +457,13 @@ export function EmailUpload() {
             <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent mb-3">
               {isProcessing ? 'Bestanden verwerken...' : 'Sleep bestanden hierheen'}
             </h3>
-            <p className="text-muted-foreground text-lg leading-relaxed max-w-md mx-auto">
-              Upload e-mail bestanden (.eml, .msg) of losse bijlagen om automatisch een offerte te genereren
+            <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl mx-auto">
+              Sleep bestanden hierheen of klik op upload. <br />
+              <span className="text-sm">💡 Tip: In Outlook kun je e-mails opslaan als .eml bestand (Bestand → Opslaan als → Outlook Message Format)</span>
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <ConnectOutlookButton />
-            
             <label htmlFor="file-upload">
               <Button 
                 size="lg"
@@ -475,7 +473,7 @@ export function EmailUpload() {
               >
                 <span className="cursor-pointer">
                   <Mail className="mr-2 h-5 w-5" />
-                  E-mail uploaden
+                  E-mail uploaden (.eml/.msg)
                 </span>
               </Button>
             </label>
@@ -490,7 +488,7 @@ export function EmailUpload() {
               >
                 <span className="cursor-pointer">
                   <FileText className="mr-2 h-5 w-5" />
-                  Bijlagen uploaden
+                  Bestanden uploaden
                 </span>
               </Button>
             </label>
