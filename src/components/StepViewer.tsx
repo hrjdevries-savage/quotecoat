@@ -60,13 +60,20 @@ export function StepViewer({ file, blobUrl, fileName, height = 400 }: StepViewer
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    // Ensure file is a proper File object for processing
+    if (file && !(file instanceof File) && fileName) {
+      // Convert Blob to File with proper name and mimetype
+      const convertedFile = new File([file as Blob], fileName, { type: 'model/step' });
+      // Process the converted file if needed
+    }
+    
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 1500);
     
     return () => clearTimeout(timer);
-  }, [file, blobUrl]);
+  }, [file, blobUrl, fileName]);
 
   const handleFitToWindow = () => {
     if (controlsRef.current) {

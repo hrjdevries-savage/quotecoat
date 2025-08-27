@@ -5,6 +5,7 @@ export type Attachment = {
   sizeBytes: number;
   blobUrl?: string;
   file?: File;
+  filePath?: string; // Add filePath for existing attachments
 };
 
 export type LineItem = {

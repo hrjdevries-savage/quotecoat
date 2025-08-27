@@ -72,17 +72,16 @@ export const useQuoteActions = () => {
           return null;
         }
 
-        // Clear existing line items and attachments for update
+        // Clear existing line items for update (but NOT attachments)
         await supabase.from('quote_line_items').delete().eq('quote_id', quoteId);
-        await supabase.from('quote_attachments').delete().eq('quote_id', quoteId);
       }
 
       // Save line items
       if (quoteDraft.lineItems.length > 0) {
         const lineItemsData = quoteDraft.lineItems.map(item => ({
           quote_id: quoteId,
-          attachment_id: item.attachmentId,
-          file_name: item.fileName,
+          attachment_id: item.attachmentId || null, // client-id remains leading
+          file_name: item.fileName || null,
           description: item.description,
           drawing_number: item.drawingNumber,
           behandeling: item.behandeling,
@@ -102,28 +101,38 @@ export const useQuoteActions = () => {
         }
       }
 
-      // Save attachments to storage and database
-      for (const attachment of quoteDraft.attachments) {
-        if (attachment.file) {
-          const fileName = `${quoteId}/${attachment.id}_${attachment.fileName}`;
-          
+      // Attachments: UPSERT per item
+      for (const a of quoteDraft.attachments) {
+        // 1) upload only if no existing path
+        let filePath = (a as any).filePath as string | undefined;
+
+        if (!filePath && a.file) {
+          const safeName = `${quoteId}/${a.id}_${a.fileName}`;
           const { error: uploadError } = await supabase.storage
             .from('quote-attachments')
-            .upload(fileName, attachment.file, { upsert: true });
-
-          if (!uploadError) {
-            await supabase
-              .from('quote_attachments')
-              .insert({
-                quote_id: quoteId,
-                original_attachment_id: attachment.id,
-                file_name: attachment.fileName,
-                mime_type: attachment.mimeType,
-                size_bytes: attachment.sizeBytes,
-                file_path: fileName
-              });
+            .upload(safeName, a.file, { upsert: true });
+          if (uploadError) {
+            console.error('Upload attachment failed:', uploadError);
+            continue;
           }
+          filePath = safeName;
         }
+
+        // 2) upsert row (keep client-id as key)
+        const row = {
+          quote_id: quoteId,
+          original_attachment_id: a.id,
+          file_name: a.fileName,
+          mime_type: a.mimeType,
+          size_bytes: a.sizeBytes,
+          file_path: filePath || `${quoteId}/${a.id}_${a.fileName}`
+        };
+
+        const { error: upsertErr } = await supabase
+          .from('quote_attachments')
+          .upsert(row, { onConflict: 'quote_id,original_attachment_id' });
+
+        if (upsertErr) console.error('Upsert attachment failed:', upsertErr);
       }
 
       toast({
@@ -306,38 +315,65 @@ export const useQuoteActions = () => {
         return null;
       }
 
-      // Download attachment files and create blob URLs
-      const attachments = [];
-      if (attachmentsData && attachmentsData.length > 0) {
-        for (const attachment of attachmentsData) {
+      // Download attachment files and create File objects
+      const attachments: any[] = [];
+      
+      if (attachmentsData?.length) {
+        for (const a of attachmentsData) {
           try {
-            // Download the file from storage
-            const { data: fileData, error: downloadError } = await supabase.storage
+            const { data: blob, error: dlErr } = await supabase.storage
               .from('quote-attachments')
-              .download(attachment.file_path);
+              .download(a.file_path);
 
-            if (downloadError) {
-              console.error('Error downloading attachment:', downloadError);
-              continue; // Skip this attachment if download fails
+            if (dlErr) { 
+              console.error('Download error', dlErr); 
+              continue; 
             }
 
-            // Create blob URL for previewer
-            const blobUrl = URL.createObjectURL(fileData);
+            // Blob -> File with correct name and mimetype
+            const file = new File([blob], a.file_name, { type: a.mime_type || 'application/octet-stream' });
+            const blobUrl = URL.createObjectURL(file);
 
             attachments.push({
-              id: attachment.original_attachment_id,
-              fileName: attachment.file_name,
-              mimeType: attachment.mime_type,
-              sizeBytes: attachment.size_bytes,
-              blobUrl: blobUrl,
-              file: fileData // Add the actual file data
+              id: a.original_attachment_id ?? a.id,  // use stable client-id
+              fileName: a.file_name,
+              mimeType: a.mime_type,
+              sizeBytes: a.size_bytes,
+              blobUrl,
+              file,                   // now a real File
+              filePath: a.file_path,  // save path (avoids re-upload)
             });
-          } catch (error) {
-            console.error('Error processing attachment:', error);
-            // Continue with other attachments
+          } catch (e) {
+            console.error('Process attachment failed', e);
           }
         }
       }
+
+      // Build quick lookup tables
+      const attById = new Map(attachments.map(x => [x.id, x]));
+      const attByName = new Map(attachments.map(x => [x.fileName, x]));
+
+      // Line items + restore linking
+      const lineItems = (lineItemsData || []).map(item => {
+        let attachmentId = item.attachment_id || null;
+        if (!attachmentId && item.file_name) {
+          const guess = attByName.get(item.file_name);
+          if (guess) attachmentId = guess.id;
+        }
+        return {
+          id: item.id,
+          attachmentId: attachmentId || undefined,
+          fileName: item.file_name || undefined,
+          description: item.description,
+          drawingNumber: item.drawing_number || '',
+          behandeling: item.behandeling || '',
+          lengte: item.lengte ? Number(item.lengte) : null,
+          breedte: item.breedte ? Number(item.breedte) : null,
+          hoogte: item.hoogte ? Number(item.hoogte) : null,
+          gewichtKg: item.gewicht_kg ? Number(item.gewicht_kg) : null,
+          price: item.price ? Number(item.price) : null,
+        };
+      });
 
       // Convert to QuoteDraft format
       const quoteDraft: QuoteDraft = {
@@ -354,20 +390,8 @@ export const useQuoteActions = () => {
           terms: quoteData.terms || '',
           createdAt: quoteData.created_at,
         },
-        lineItems: lineItemsData?.map(item => ({
-          id: item.id,
-          attachmentId: item.attachment_id || undefined,
-          fileName: item.file_name || undefined,
-          description: item.description,
-          drawingNumber: item.drawing_number || '',
-          behandeling: item.behandeling || '',
-          lengte: item.lengte ? Number(item.lengte) : null,
-          breedte: item.breedte ? Number(item.breedte) : null,
-          hoogte: item.hoogte ? Number(item.hoogte) : null,
-          gewichtKg: item.gewicht_kg ? Number(item.gewicht_kg) : null,
-          price: item.price ? Number(item.price) : null,
-        })) || [],
-        attachments: attachments,
+        lineItems,
+        attachments,
       };
 
       return quoteDraft;
