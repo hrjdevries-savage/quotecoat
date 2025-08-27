@@ -19,7 +19,7 @@ const Index = () => {
       {/* Conditional Header */}
       {!currentDraft ? (/* Hero Section for landing page */
     <div className="relative overflow-hidden pb-8">
-          <div className="container relative mx-auto px-4 py-16">
+          <div className="container relative mx-auto px-4 py-[18px]">
             <div className="max-w-4xl">
               <h1 className="mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent py-[10px] px-[10px]">
                 Coating quotes made simple
