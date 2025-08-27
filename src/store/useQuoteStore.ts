@@ -10,6 +10,7 @@ interface QuoteStore {
   removeLineItem: (id: string) => void;
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (id: string) => void;
+  addAttachmentsAndLineItems: (attachments: Attachment[], lineItems: LineItem[]) => void;
   updateMeta: (meta: Partial<QuoteMeta>) => void;
   clearDraft: () => void;
   getTotalPrice: () => number;
@@ -86,6 +87,17 @@ export const useQuoteStore = create<QuoteStore>()(
                 lineItems: state.currentDraft.lineItems.filter(
                   (item) => item.attachmentId !== id
                 ),
+              }
+            : null,
+        })),
+
+      addAttachmentsAndLineItems: (attachments, lineItems) =>
+        set((state) => ({
+          currentDraft: state.currentDraft
+            ? {
+                ...state.currentDraft,
+                attachments: [...state.currentDraft.attachments, ...attachments],
+                lineItems: [...state.currentDraft.lineItems, ...lineItems],
               }
             : null,
         })),

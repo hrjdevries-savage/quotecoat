@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { Attachment, LineItem, QuoteDraft } from '@/types';
+import { ConnectOutlookButton } from './ConnectOutlookButton';
 
 export function EmailUpload() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -463,6 +464,8 @@ export function EmailUpload() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <ConnectOutlookButton />
+            
             <label htmlFor="file-upload">
               <Button 
                 size="lg"
