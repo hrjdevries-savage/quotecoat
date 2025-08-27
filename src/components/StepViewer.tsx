@@ -1,123 +1,145 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface StepViewerProps {
-  blobUrl: string;
-  fileName: string;
-  file?: File;
+  file?: File | null;
+  blobUrl?: string;
+  fileName?: string;
+  height?: number;
 }
 
-export function StepViewer({ blobUrl, fileName, file }: StepViewerProps) {
+export function StepViewer({ file, blobUrl, fileName, height = 600 }: StepViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let viewer: any = null;
-    let OV: any = null;
+    let viewer: any | null = null;
+    let disposed = false;
 
     async function init() {
       try {
         setLoading(true);
         setError(null);
 
-        // Import Online3DViewer
-        OV = await import('online-3d-viewer');
-        console.log('Online3DViewer loaded');
+        // Wait for window.OV to be available
+        const getOV = (): Promise<any> =>
+          new Promise((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+              if ((window as any).OV) return resolve((window as any).OV);
+              if (Date.now() - start > 5000) return reject(new Error('O3DV not loaded within 5 seconds'));
+              requestAnimationFrame(check);
+            };
+            check();
+          });
+
+        const OV = await getOV();
+        console.log('Online3DViewer loaded via window.OV');
 
         // Set external lib location for WASM assets
         OV.SetExternalLibLocation('/libs/');
 
+        // Container must have visible dimensions
+        if (!containerRef.current) return;
+        containerRef.current.style.minHeight = `${height}px`;
+
         // Initialize viewer
-        viewer = new OV.EmbeddedViewer(containerRef.current!, {
-          backgroundColor: new OV.RGBAColor(248, 249, 250, 255),
-          defaultColor: new OV.RGBColor(100, 149, 237),
-          edgeSettings: { showEdges: true }
+        viewer = new OV.EmbeddedViewer(containerRef.current, {
+          backgroundColor: new OV.RGBAColor(255, 255, 255, 255),
+          defaultColor: new OV.RGBColor(200, 200, 200),
+          edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
         });
 
-        // Load the STEP file if available
-        if (file) {
-          console.log('Loading STEP file:', fileName);
-          const buffer = new Uint8Array(await file.arrayBuffer());
-          const files = [new OV.InputFile(fileName, buffer)];
-          const params = new OV.ImportParameters();
-          params.defaultColor = new OV.RGBColor(100, 149, 237);
+        // Determine source file
+        let srcFile: File | null = file ?? null;
+        if (!srcFile && blobUrl && fileName) {
+          const res = await fetch(blobUrl);
+          if (!res.ok) throw new Error(`Failed to fetch blob: ${res.status}`);
+          const buf = await res.arrayBuffer();
+          srcFile = new File([buf], fileName, { type: 'model/step' });
+        }
+        if (!srcFile) {
+          setError('Geen bestand beschikbaar');
+          setLoading(false);
+          return;
+        }
 
-          viewer.LoadModelFromFileList(
-            files, 
-            params, 
-            () => {
-              // Success callback
+        console.log('Loading STEP file:', srcFile.name);
+
+        // Create FileList for the loader
+        const dt = new DataTransfer();
+        dt.items.add(srcFile);
+
+        // Load model and fit
+        viewer.LoadModelFromFileList(
+          dt.files,
+          undefined,
+          () => {
+            // Success callback
+            if (!disposed) {
               console.log('STEP file loaded successfully');
               viewer.FitModelToWindow();
               setLoading(false);
-            },
-            (progress: number) => {
-              // Progress callback
-              console.log('Loading progress:', progress);
-            },
-            (err: any) => {
-              // Error callback
-              console.error('STEP load error:', err);
+            }
+          },
+          (progress: number) => {
+            // Progress callback
+            console.log('Loading progress:', progress);
+          },
+          (err: any) => {
+            // Error callback
+            console.error('STEP load error:', err);
+            if (!disposed) {
               setError('Fout bij laden van STEP bestand: ' + (err?.message || 'Onbekende fout'));
               setLoading(false);
             }
-          );
-        } else if (blobUrl) {
-          // Fallback: try to fetch from blob URL
-          try {
-            const response = await fetch(blobUrl);
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = new Uint8Array(arrayBuffer);
-            const files = [new OV.InputFile(fileName, buffer)];
-            const params = new OV.ImportParameters();
-            params.defaultColor = new OV.RGBColor(100, 149, 237);
-
-            viewer.LoadModelFromFileList(
-              files,
-              params,
-              () => {
-                console.log('STEP file loaded successfully from blob');
-                viewer.FitModelToWindow();
-                setLoading(false);
-              },
-              (progress: number) => {
-                console.log('Loading progress:', progress);
-              },
-              (err: any) => {
-                console.error('STEP load error:', err);
-                setError('Fout bij laden van STEP bestand: ' + (err?.message || 'Onbekende fout'));
-                setLoading(false);
-              }
-            );
-          } catch (fetchError) {
-            console.error('Error fetching blob:', fetchError);
-            setError('Fout bij ophalen van bestand');
-            setLoading(false);
           }
-        } else {
-          setError('Geen bestand beschikbaar');
-          setLoading(false);
-        }
+        );
+
+        // Resize/Modal open safeguards
+        const fit = () => {
+          if (!disposed) {
+            try {
+              viewer.FitModelToWindow();
+            } catch (e) {
+              // Ignore errors during fitting
+            }
+          }
+        };
+        
+        setTimeout(fit, 60);
+        const resizeHandler = () => fit();
+        window.addEventListener('resize', resizeHandler);
+        
+        return () => {
+          window.removeEventListener('resize', resizeHandler);
+        };
+
       } catch (initError) {
         console.error('Error initializing viewer:', initError);
-        setError('Fout bij initialiseren van 3D viewer: ' + (initError?.message || 'Onbekende fout'));
-        setLoading(false);
+        if (!disposed) {
+          setError('Fout bij initialiseren van 3D viewer: ' + (initError instanceof Error ? initError.message : 'Onbekende fout'));
+          setLoading(false);
+        }
       }
     }
 
     if (containerRef.current) {
-      init();
+      init().catch((e) => console.error('Init O3DV error', e));
     }
 
     return () => {
-      if (viewer && viewer.Clear) {
-        viewer.Clear();
+      disposed = true;
+      try {
+        viewer?.Destroy?.();
+      } catch (e) {
+        // Ignore cleanup errors
       }
     };
-  }, [file, blobUrl, fileName]);
+  }, [file, blobUrl, fileName, height]);
 
   return (
-    <div className="w-full h-96 border rounded-lg bg-background overflow-hidden relative">
+    <div className="w-full border rounded-lg bg-background overflow-hidden relative" style={{ height }}>
       <div ref={containerRef} className="w-full h-full" />
       
       {loading && (
@@ -135,14 +157,14 @@ export function StepViewer({ blobUrl, fileName, file }: StepViewerProps) {
             <div className="text-2xl mb-2">⚠️</div>
             <div className="text-sm text-destructive">{error}</div>
             <div className="text-xs text-muted-foreground mt-2">
-              Zorg ervoor dat de WASM libraries in /public/libs/ staan
+              Zorg ervoor dat de O3DV en WASM libraries in /public/libs/ staan
             </div>
           </div>
         </div>
       )}
       
       <div className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-background/90 px-2 py-1 rounded border max-w-xs">
-        📐 3D Preview: {fileName}
+        📐 3D Preview: {fileName || 'STEP bestand'}
       </div>
       
       <div className="absolute top-2 right-2 text-xs text-muted-foreground bg-background/90 px-2 py-1 rounded border">

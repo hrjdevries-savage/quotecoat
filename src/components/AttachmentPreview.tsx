@@ -71,7 +71,7 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
     if (!attachment || !isOpen) return;
 
     const isPDF = attachment.mimeType === 'application/pdf';
-    const isCAD = /\.(step|stp|iges|igs|stl|obj|3ds|fbx|dxf)$/i.test(attachment.fileName);
+  const isCAD = /\.(stp|step)$/i.test(attachment.fileName);
 
     if (isPDF) {
       console.log('Loading PDF:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
@@ -141,7 +141,7 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
   if (!attachment) return null;
 
   const isPDF = attachment.mimeType === 'application/pdf';
-  const isCAD = /\.(step|stp|iges|igs|stl|obj|3ds|fbx|dxf)$/i.test(attachment.fileName);
+  const isCAD = /\.(stp|step)$/i.test(attachment.fileName);
   const isImage = attachment.mimeType.startsWith('image/');
 
   const handleDownload = () => {
@@ -222,11 +222,12 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
             </div>
           )}
           
-          {isCAD && attachment.blobUrl && (
-            <StepViewer 
-              blobUrl={attachment.blobUrl} 
-              fileName={attachment.fileName} 
-              file={attachment.file}
+          {isCAD && (
+            <StepViewer
+              file={attachment.file ?? null}
+              blobUrl={attachment.file ? undefined : attachment.blobUrl}
+              fileName={attachment.file ? undefined : attachment.fileName}
+              height={600}
             />
           )}
           
