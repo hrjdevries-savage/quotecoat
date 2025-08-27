@@ -11,45 +11,45 @@ interface StepViewerProps {
   height?: number;
 }
 
-// Simple mechanical part mockup
+// Simple mechanical part mockup with bright, visible colors
 function MechanicalPart() {
   return (
     <group>
       {/* Main body - rectangular base */}
       <Box args={[3, 0.5, 2]} position={[0, 0, 0]}>
-        <meshStandardMaterial color="#606060" metalness={0.8} roughness={0.2} />
+        <meshStandardMaterial color="#8A9BA8" metalness={0.6} roughness={0.3} />
       </Box>
       
       {/* Cylindrical feature */}
       <Cylinder args={[0.6, 0.6, 1.5, 32]} position={[0, 0.75, 0]}>
-        <meshStandardMaterial color="#707070" metalness={0.8} roughness={0.2} />
+        <meshStandardMaterial color="#A5B5C2" metalness={0.6} roughness={0.3} />
       </Cylinder>
       
       {/* Holes */}
       <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[-1, 0.25, 0.6]}>
-        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+        <meshStandardMaterial color="#5A6B78" metalness={0.8} roughness={0.2} />
       </Cylinder>
       <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[1, 0.25, 0.6]}>
-        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+        <meshStandardMaterial color="#5A6B78" metalness={0.8} roughness={0.2} />
       </Cylinder>
       <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[-1, 0.25, -0.6]}>
-        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+        <meshStandardMaterial color="#5A6B78" metalness={0.8} roughness={0.2} />
       </Cylinder>
       <Cylinder args={[0.2, 0.2, 0.6, 16]} position={[1, 0.25, -0.6]}>
-        <meshStandardMaterial color="#303030" metalness={0.9} roughness={0.1} />
+        <meshStandardMaterial color="#5A6B78" metalness={0.8} roughness={0.2} />
       </Cylinder>
       
       {/* Small details */}
       <Sphere args={[0.1]} position={[0, 1.5, 0]}>
-        <meshStandardMaterial color="#808080" metalness={0.7} roughness={0.3} />
+        <meshStandardMaterial color="#B8C5D1" metalness={0.5} roughness={0.4} />
       </Sphere>
       
       {/* Side features */}
       <Box args={[0.3, 0.3, 0.8]} position={[1.65, 0.4, 0]}>
-        <meshStandardMaterial color="#656565" metalness={0.8} roughness={0.2} />
+        <meshStandardMaterial color="#95A6B3" metalness={0.6} roughness={0.3} />
       </Box>
       <Box args={[0.3, 0.3, 0.8]} position={[-1.65, 0.4, 0]}>
-        <meshStandardMaterial color="#656565" metalness={0.8} roughness={0.2} />
+        <meshStandardMaterial color="#95A6B3" metalness={0.6} roughness={0.3} />
       </Box>
     </group>
   );
