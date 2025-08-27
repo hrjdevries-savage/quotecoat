@@ -6,47 +6,49 @@
 
 @layer base {
   :root {
-    /* Professional color palette */
-    --background: 0 0% 100%;
-    --foreground: 210 12% 16%;
+    /* Modern dark-first palette inspired by Unmuted/Duna/Hubs */
+    --background: 222 15% 8%;
+    --foreground: 210 20% 96%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 210 12% 16%;
+    --card: 222 15% 10%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 12% 16%;
+    --popover: 222 15% 10%;
+    --popover-foreground: 210 20% 96%;
 
-    /* Primary brand color - Professional blue */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 91% 55%;
+    /* Primary - Bright accent color */
+    --primary: 142 100% 76%;
+    --primary-foreground: 222 15% 8%;
+    --primary-hover: 142 100% 70%;
 
     /* Secondary colors */
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 210 12% 16%;
+    --secondary: 222 15% 15%;
+    --secondary-foreground: 210 20% 90%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 222 15% 12%;
+    --muted-foreground: 210 15% 60%;
 
-    --accent: 210 40% 94%;
-    --accent-foreground: 210 12% 16%;
+    --accent: 260 80% 65%;
+    --accent-foreground: 210 20% 96%;
 
     /* Business colors */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-    --warning: 45 93% 47%;
-    --warning-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 56%;
+    --success-foreground: 222 15% 8%;
+    --warning: 45 93% 67%;
+    --warning-foreground: 222 15% 8%;
+    --destructive: 0 72% 60%;
+    --destructive-foreground: 210 20% 96%;
 
     /* Borders and inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --border: 222 15% 20%;
+    --input: 222 15% 15%;
+    --ring: 142 100% 76%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(224 76% 48%));
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 98%));
+    /* Advanced gradients inspired by the reference sites */
+    --gradient-primary: linear-gradient(135deg, hsl(142 100% 76%), hsl(260 80% 65%));
+    --gradient-hero: linear-gradient(135deg, hsl(222 15% 8%) 0%, hsl(260 30% 15%) 50%, hsl(142 50% 20%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(222 15% 10%) 0%, hsl(222 15% 12%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(222 15% 8%), hsl(222 15% 10%));
     
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
@@ -73,34 +75,35 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+  .light {
+    /* Light theme fallback */
+    --background: 0 0% 100%;
+    --foreground: 210 12% 16%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 12% 16%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 12% 16%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 142 100% 46%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 210 12% 16%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 260 80% 45%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 142 100% 46%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -119,5 +122,22 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "liga" 1, "kern" 1;
+    text-rendering: optimizeLegibility;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-semibold;
+  }
+
+  h1 {
+    @apply text-4xl md:text-6xl lg:text-7xl;
+    line-height: 1.1;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl lg:text-4xl;
+    line-height: 1.2;
+  }
+}
 }
