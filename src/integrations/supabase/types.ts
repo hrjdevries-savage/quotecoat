@@ -14,7 +14,157 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      quote_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          mime_type: string
+          original_attachment_id: string
+          quote_id: string
+          size_bytes: number
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          mime_type: string
+          original_attachment_id: string
+          quote_id: string
+          size_bytes: number
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          original_attachment_id?: string
+          quote_id?: string
+          size_bytes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_attachments_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_line_items: {
+        Row: {
+          attachment_id: string | null
+          behandeling: string | null
+          breedte: number | null
+          created_at: string
+          description: string
+          drawing_number: string | null
+          file_name: string | null
+          gewicht_kg: number | null
+          hoogte: number | null
+          id: string
+          lengte: number | null
+          price: number | null
+          quote_id: string
+        }
+        Insert: {
+          attachment_id?: string | null
+          behandeling?: string | null
+          breedte?: number | null
+          created_at?: string
+          description: string
+          drawing_number?: string | null
+          file_name?: string | null
+          gewicht_kg?: number | null
+          hoogte?: number | null
+          id?: string
+          lengte?: number | null
+          price?: number | null
+          quote_id: string
+        }
+        Update: {
+          attachment_id?: string | null
+          behandeling?: string | null
+          breedte?: number | null
+          created_at?: string
+          description?: string
+          drawing_number?: string | null
+          file_name?: string | null
+          gewicht_kg?: number | null
+          hoogte?: number | null
+          id?: string
+          lengte?: number | null
+          price?: number | null
+          quote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_line_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          client_address: string | null
+          client_city: string | null
+          client_email: string | null
+          client_name: string
+          client_postal_code: string | null
+          client_reference: string | null
+          created_at: string
+          id: string
+          pdf_file_path: string | null
+          quote_number: string
+          status: string | null
+          terms: string | null
+          total_price: number | null
+          updated_at: string
+          validity_days: number
+        }
+        Insert: {
+          client_address?: string | null
+          client_city?: string | null
+          client_email?: string | null
+          client_name: string
+          client_postal_code?: string | null
+          client_reference?: string | null
+          created_at?: string
+          id?: string
+          pdf_file_path?: string | null
+          quote_number: string
+          status?: string | null
+          terms?: string | null
+          total_price?: number | null
+          updated_at?: string
+          validity_days?: number
+        }
+        Update: {
+          client_address?: string | null
+          client_city?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_postal_code?: string | null
+          client_reference?: string | null
+          created_at?: string
+          id?: string
+          pdf_file_path?: string | null
+          quote_number?: string
+          status?: string | null
+          terms?: string | null
+          total_price?: number | null
+          updated_at?: string
+          validity_days?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
