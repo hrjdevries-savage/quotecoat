@@ -87,20 +87,20 @@ export function LineItemsTable() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">
-                <th className="text-left p-3 font-medium w-16">Preview</th>
-                <th className="text-left p-3 font-medium min-w-[180px]">Bestand</th>
-                <th className="text-left p-3 font-medium min-w-[200px]">Omschrijving</th>
-                <th className="text-left p-3 font-medium min-w-[120px]">Tekeningnr.</th>
-                <th className="text-left p-3 font-medium min-w-[120px]">Behandeling</th>
-                <th className="text-left p-3 font-medium min-w-[80px]">Lengte</th>
-                <th className="text-left p-3 font-medium min-w-[80px]">Breedte</th>
-                <th className="text-left p-3 font-medium min-w-[80px]">Hoogte</th>
-                <th className="text-left p-3 font-medium min-w-[100px]">Gewicht KG</th>
-                <th className="text-left p-3 font-medium min-w-[100px]">Prijs (€)</th>
-                <th className="text-left p-3 font-medium w-20">Acties</th>
+                <th className="text-left p-2 font-medium text-xs w-12">Preview</th>
+                <th className="text-left p-2 font-medium text-xs min-w-[140px]">Bestand</th>
+                <th className="text-left p-2 font-medium text-xs min-w-[160px]">Omschrijving</th>
+                <th className="text-left p-2 font-medium text-xs min-w-[100px]">Tekeningnr.</th>
+                <th className="text-left p-2 font-medium text-xs min-w-[100px]">Behandeling</th>
+                <th className="text-left p-2 font-medium text-xs w-16">L (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-16">B (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-16">H (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
+                <th className="text-left p-2 font-medium text-xs w-20">Prijs (€)</th>
+                <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
               </tr>
             </thead>
             <tbody>
@@ -109,114 +109,121 @@ export function LineItemsTable() {
                 
                 return (
                   <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors">
-                    <td className="p-3" rowSpan={2}>
+                    <td className="p-2">
                       {preview ? (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setShowPreviewId(item.id)}
+                          className="h-6 w-6 p-0"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3 w-3" />
                         </Button>
                       ) : (
-                        <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                        <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
                           <span className="text-xs text-muted-foreground">-</span>
                         </div>
                       )}
                     </td>
                     
-                    <td className="p-3" rowSpan={2}>
+                    <td className="p-2">
                       {item.fileName ? (
                         <div className="space-y-1">
-                          <div className="font-medium text-sm truncate max-w-[160px]">
+                          <div className="font-medium text-xs truncate max-w-[120px]">
                             {item.fileName}
                           </div>
                           {preview && (
                             <div className="flex gap-1 flex-wrap">
                               {preview.isPDF && (
-                                <Badge variant="secondary" className="text-xs">PDF</Badge>
+                                <Badge variant="secondary" className="text-xs h-4 px-1">PDF</Badge>
                               )}
                               {preview.isCAD && (
-                                <Badge variant="secondary" className="text-xs">CAD</Badge>
+                                <Badge variant="secondary" className="text-xs h-4 px-1">CAD</Badge>
                               )}
-                              <span className="text-xs text-muted-foreground">
-                                {formatFileSize(preview.attachment.sizeBytes)}
-                              </span>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">Handmatige regel</span>
+                        <span className="text-muted-foreground text-xs">Handmatig</span>
                       )}
                     </td>
                     
-                    <td className="p-3" colSpan={2}>
+                    <td className="p-2">
                       <Input
                         value={item.description}
                         onChange={(e) => updateLineItem(item.id, { description: e.target.value })}
                         placeholder="Omschrijving..."
-                        className="w-full"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3">
+                    <td className="p-2">
+                      <Input
+                        value={item.drawingNumber}
+                        onChange={(e) => updateLineItem(item.id, { drawingNumber: e.target.value })}
+                        placeholder="Tekening..."
+                        className="h-8 text-xs"
+                      />
+                    </td>
+                    
+                    <td className="p-2">
                       <Input
                         value={item.behandeling}
                         onChange={(e) => updateLineItem(item.id, { behandeling: e.target.value })}
                         placeholder="Behandeling..."
-                        className="w-full"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3">
+                    <td className="p-2">
                       <Input
                         type="number"
                         min="0"
                         step="0.1"
                         value={item.lengte || ''}
                         onChange={(e) => updateLineItem(item.id, { lengte: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                        placeholder="mm"
-                        className="w-full"
+                        placeholder="0"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3">
+                    <td className="p-2">
                       <Input
                         type="number"
                         min="0"
                         step="0.1"
                         value={item.breedte || ''}
                         onChange={(e) => updateLineItem(item.id, { breedte: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                        placeholder="mm"
-                        className="w-full"
+                        placeholder="0"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3">
+                    <td className="p-2">
                       <Input
                         type="number"
                         min="0"
                         step="0.1"
                         value={item.hoogte || ''}
                         onChange={(e) => updateLineItem(item.id, { hoogte: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                        placeholder="mm"
-                        className="w-full"
+                        placeholder="0"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3">
+                    <td className="p-2">
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
                         value={item.gewichtKg || ''}
                         onChange={(e) => updateLineItem(item.id, { gewichtKg: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                        placeholder="kg"
-                        className="w-full"
+                        placeholder="0"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3" rowSpan={2}>
+                    <td className="p-2">
                       <Input
                         type="number"
                         min="0"
@@ -224,18 +231,18 @@ export function LineItemsTable() {
                         value={item.price || ''}
                         onChange={(e) => handlePriceChange(item.id, e.target.value)}
                         placeholder="0.00"
-                        className="w-full"
+                        className="h-8 text-xs"
                       />
                     </td>
                     
-                    <td className="p-3" rowSpan={2}>
+                    <td className="p-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => removeLineItem(item.id)}
-                        className="text-destructive hover:text-destructive"
+                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </td>
                   </tr>
