@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { X, Download } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, Download, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Attachment } from '@/types';
@@ -15,6 +15,57 @@ interface AttachmentPreviewProps {
 export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1.5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
+
+  const renderPdfPage = async (pdfDoc: any, pageNumber: number, zoomScale: number) => {
+    try {
+      const page = await pdfDoc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: zoomScale });
+      const canvas = canvasRef.current;
+      
+      if (!canvas) return;
+      
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      const renderContext = {
+        canvasContext: canvas.getContext('2d')!,
+        viewport: viewport
+      };
+      
+      await page.render(renderContext).promise;
+      console.log('PDF page rendered successfully');
+    } catch (error) {
+      console.error('Error rendering PDF page:', error);
+    }
+  };
+
+  const handleZoomIn = () => {
+    setScale(prev => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setScale(prev => Math.max(prev - 0.25, 0.5));
+  };
+
+  const handleResetZoom = () => {
+    setScale(1.5);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
 
   useEffect(() => {
     if (!attachment || !isOpen) return;
@@ -28,7 +79,7 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
       // Set up PDF.js worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       
-      // First, let's validate the blob data before trying to load it
+      // Load PDF document
       fetch(attachment.blobUrl)
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => {
@@ -43,33 +94,14 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
             throw new Error('Invalid PDF header: ' + header);
           }
           
-          // Load PDF using the array buffer instead of blob URL
           return pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         })
         .then((pdf) => {
           console.log('PDF loaded successfully, pages:', pdf.numPages);
-          return pdf.getPage(1);
-        })
-        .then((page) => {
-          console.log('First page loaded');
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            console.error('Canvas ref not available');
-            return;
-          }
-          
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          
-          const renderContext = {
-            canvasContext: canvas.getContext('2d')!,
-            viewport: viewport
-          };
-          
-          page.render(renderContext).promise.then(() => {
-            console.log('PDF rendered successfully');
-          });
+          setPdfDocument(pdf);
+          setTotalPages(pdf.numPages);
+          setCurrentPage(1);
+          renderPdfPage(pdf, 1, scale);
         })
         .catch((error) => {
           console.error('Error loading PDF:', error);
@@ -79,9 +111,14 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
         });
     } else if (isCAD && attachment.blobUrl) {
       console.log('Loading STEP/CAD file:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
-      // The StepViewer component will handle the 3D rendering
     }
-  }, [attachment, isOpen]);
+  }, [attachment, isOpen, scale]);
+
+  useEffect(() => {
+    if (pdfDocument && currentPage) {
+      renderPdfPage(pdfDocument, currentPage, scale);
+    }
+  }, [scale, currentPage, pdfDocument]);
 
   if (!attachment) return null;
 
@@ -119,7 +156,50 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
         <div className="overflow-auto max-h-[70vh]">
           {isPDF && (
             <div className="space-y-4">
-              <canvas ref={canvasRef} className="w-full border rounded-lg" />
+              {/* PDF Controls */}
+              <div className="flex items-center justify-between bg-muted/20 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handlePrevPage}
+                    disabled={currentPage <= 1}
+                  >
+                    Vorige
+                  </Button>
+                  <span className="text-sm font-medium">
+                    Pagina {currentPage} van {totalPages}
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleNextPage}
+                    disabled={currentPage >= totalPages}
+                  >
+                    Volgende
+                  </Button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={scale <= 0.5}>
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[60px] text-center">
+                    {Math.round(scale * 100)}%
+                  </span>
+                  <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={scale >= 3}>
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleResetZoom}>
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              {/* PDF Canvas */}
+              <div className="border rounded-lg overflow-auto bg-white p-4 shadow-inner">
+                <canvas ref={canvasRef} className="max-w-full h-auto" />
+              </div>
               <div ref={pdfContainerRef} />
             </div>
           )}
