@@ -1,6 +1,5 @@
 import { EmailUpload } from '@/components/EmailUpload';
 import { LineItemsTable } from '@/components/LineItemsTable';
-import { QuoteGenerator } from '@/components/QuoteGenerator';
 import { PdfGenerator } from '@/components/PdfGenerator';
 import { useQuoteStore } from '@/store/useQuoteStore';
 
@@ -16,7 +15,6 @@ const Index = () => {
           <>
             <LineItemsTable />
             <PdfGenerator />
-            <QuoteGenerator />
           </>
         )}
       </div>

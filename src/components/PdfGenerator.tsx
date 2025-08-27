@@ -45,7 +45,7 @@ export function PdfGenerator() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">PDF Offerte Genereren</h3>
+        <h3 className="text-lg font-semibold">Offerte Preview</h3>
         <Button onClick={generatePdf} className="flex items-center gap-2">
           <FileDown className="h-4 w-4" />
           Download PDF
