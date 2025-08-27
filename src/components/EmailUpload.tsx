@@ -116,6 +116,11 @@ export function EmailUpload() {
               fileName: attachment.fileName,
               description: attachment.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
               drawingNumber: '',
+              behandeling: '',
+              lengte: null,
+              breedte: null,
+              hoogte: null,
+              gewichtKg: null,
               price: null,
             };
             
@@ -141,6 +146,11 @@ export function EmailUpload() {
             fileName: file.name,
             description: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
             drawingNumber: '',
+            behandeling: '',
+            lengte: null,
+            breedte: null,
+            hoogte: null,
+            gewichtKg: null,
             price: null,
           };
           

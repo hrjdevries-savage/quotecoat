@@ -13,6 +13,11 @@ export type LineItem = {
   fileName?: string;
   description: string;
   drawingNumber: string;
+  behandeling: string;
+  lengte: number | null;
+  breedte: number | null;
+  hoogte: number | null;
+  gewichtKg: number | null;
   price: number | null;
 };
 

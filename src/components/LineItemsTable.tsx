@@ -28,6 +28,11 @@ export function LineItemsTable() {
       id: `item_${Date.now()}`,
       description: '',
       drawingNumber: '',
+      behandeling: '',
+      lengte: null,
+      breedte: null,
+      hoogte: null,
+      gewichtKg: null,
       price: null,
     };
     addLineItem(newItem);
@@ -85,12 +90,17 @@ export function LineItemsTable() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/30">
-                <th className="text-left p-4 font-medium">Preview</th>
-                <th className="text-left p-4 font-medium">Bestand</th>
-                <th className="text-left p-4 font-medium min-w-[200px]">Omschrijving</th>
-                <th className="text-left p-4 font-medium min-w-[150px]">Tekeningnr.</th>
-                <th className="text-left p-4 font-medium min-w-[120px]">Prijs (€)</th>
-                <th className="text-left p-4 font-medium w-20">Acties</th>
+                <th className="text-left p-3 font-medium w-16">Preview</th>
+                <th className="text-left p-3 font-medium min-w-[180px]">Bestand</th>
+                <th className="text-left p-3 font-medium min-w-[200px]">Omschrijving</th>
+                <th className="text-left p-3 font-medium min-w-[120px]">Tekeningnr.</th>
+                <th className="text-left p-3 font-medium min-w-[120px]">Behandeling</th>
+                <th className="text-left p-3 font-medium min-w-[80px]">Lengte</th>
+                <th className="text-left p-3 font-medium min-w-[80px]">Breedte</th>
+                <th className="text-left p-3 font-medium min-w-[80px]">Hoogte</th>
+                <th className="text-left p-3 font-medium min-w-[100px]">Gewicht KG</th>
+                <th className="text-left p-3 font-medium min-w-[100px]">Prijs (€)</th>
+                <th className="text-left p-3 font-medium w-20">Acties</th>
               </tr>
             </thead>
             <tbody>
@@ -99,7 +109,7 @@ export function LineItemsTable() {
                 
                 return (
                   <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors">
-                    <td className="p-4">
+                    <td className="p-3" rowSpan={2}>
                       {preview ? (
                         <Button
                           variant="outline"
@@ -115,14 +125,14 @@ export function LineItemsTable() {
                       )}
                     </td>
                     
-                    <td className="p-4">
+                    <td className="p-3" rowSpan={2}>
                       {item.fileName ? (
                         <div className="space-y-1">
-                          <div className="font-medium text-sm truncate max-w-[200px]">
+                          <div className="font-medium text-sm truncate max-w-[160px]">
                             {item.fileName}
                           </div>
                           {preview && (
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 flex-wrap">
                               {preview.isPDF && (
                                 <Badge variant="secondary" className="text-xs">PDF</Badge>
                               )}
@@ -140,7 +150,7 @@ export function LineItemsTable() {
                       )}
                     </td>
                     
-                    <td className="p-4">
+                    <td className="p-3" colSpan={2}>
                       <Input
                         value={item.description}
                         onChange={(e) => updateLineItem(item.id, { description: e.target.value })}
@@ -149,16 +159,64 @@ export function LineItemsTable() {
                       />
                     </td>
                     
-                    <td className="p-4">
+                    <td className="p-3">
                       <Input
-                        value={item.drawingNumber}
-                        onChange={(e) => updateLineItem(item.id, { drawingNumber: e.target.value })}
-                        placeholder="Tekening nr..."
+                        value={item.behandeling}
+                        onChange={(e) => updateLineItem(item.id, { behandeling: e.target.value })}
+                        placeholder="Behandeling..."
                         className="w-full"
                       />
                     </td>
                     
-                    <td className="p-4">
+                    <td className="p-3">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={item.lengte || ''}
+                        onChange={(e) => updateLineItem(item.id, { lengte: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        placeholder="mm"
+                        className="w-full"
+                      />
+                    </td>
+                    
+                    <td className="p-3">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={item.breedte || ''}
+                        onChange={(e) => updateLineItem(item.id, { breedte: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        placeholder="mm"
+                        className="w-full"
+                      />
+                    </td>
+                    
+                    <td className="p-3">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={item.hoogte || ''}
+                        onChange={(e) => updateLineItem(item.id, { hoogte: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        placeholder="mm"
+                        className="w-full"
+                      />
+                    </td>
+                    
+                    <td className="p-3">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.gewichtKg || ''}
+                        onChange={(e) => updateLineItem(item.id, { gewichtKg: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        placeholder="kg"
+                        className="w-full"
+                      />
+                    </td>
+                    
+                    <td className="p-3" rowSpan={2}>
                       <Input
                         type="number"
                         min="0"
@@ -170,7 +228,7 @@ export function LineItemsTable() {
                       />
                     </td>
                     
-                    <td className="p-4">
+                    <td className="p-3" rowSpan={2}>
                       <Button
                         variant="outline"
                         size="sm"
