@@ -23,6 +23,10 @@ export type LineItem = {
 
 export type QuoteMeta = {
   clientName: string;
+  clientEmail?: string;
+  clientAddress?: string;
+  clientCity?: string;
+  clientPostalCode?: string;
   clientReference?: string;
   quoteNumber: string;
   validityDays: number;

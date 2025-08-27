@@ -27,7 +27,7 @@ export function CustomerInfo() {
       </div>
 
       <Card className="p-8 border border-border/40 bg-gradient-card shadow-lg">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
             <Label htmlFor="clientName" className="text-sm font-medium">Klantnaam *</Label>
             <Input
@@ -37,6 +37,18 @@ export function CustomerInfo() {
               placeholder="Naam van de klant"
               className="border-border/60 focus:border-primary/60 transition-colors"
               required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="clientEmail" className="text-sm font-medium">Email adres</Label>
+            <Input
+              id="clientEmail"
+              type="email"
+              value={currentDraft.meta.clientEmail || ''}
+              onChange={(e) => updateMeta({ clientEmail: e.target.value })}
+              placeholder="email@voorbeeld.nl"
+              className="border-border/60 focus:border-primary/60 transition-colors"
             />
           </div>
           
@@ -51,7 +63,43 @@ export function CustomerInfo() {
             />
           </div>
           
-          <div className="relative overflow-hidden p-6 bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-lg border border-primary/20">
+          <div className="space-y-2">
+            <Label htmlFor="clientAddress" className="text-sm font-medium">Adres</Label>
+            <Input
+              id="clientAddress"
+              value={currentDraft.meta.clientAddress || ''}
+              onChange={(e) => updateMeta({ clientAddress: e.target.value })}
+              placeholder="Straat en huisnummer"
+              className="border-border/60 focus:border-primary/60 transition-colors"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="clientPostalCode" className="text-sm font-medium">Postcode</Label>
+            <Input
+              id="clientPostalCode"
+              value={currentDraft.meta.clientPostalCode || ''}
+              onChange={(e) => updateMeta({ clientPostalCode: e.target.value })}
+              placeholder="1234 AB"
+              className="border-border/60 focus:border-primary/60 transition-colors"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="clientCity" className="text-sm font-medium">Plaats</Label>
+            <Input
+              id="clientCity"
+              value={currentDraft.meta.clientCity || ''}
+              onChange={(e) => updateMeta({ clientCity: e.target.value })}
+              placeholder="Plaats"
+              className="border-border/60 focus:border-primary/60 transition-colors"
+            />
+          </div>
+        </div>
+        
+        {/* Totaal bedrag card apart */}
+        <div className="mt-8">
+          <div className="relative overflow-hidden p-6 bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-lg border border-primary/20 max-w-md">
             <div className="absolute inset-0 bg-gradient-primary opacity-5"></div>
             <div className="relative">
               <div className="text-sm text-muted-foreground mb-2 font-medium">Totaal bedrag</div>

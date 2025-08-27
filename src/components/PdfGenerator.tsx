@@ -1,13 +1,15 @@
-import { useRef } from 'react';
-import { FileDown } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { FileDown, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { PdfTemplate } from './PdfTemplate';
+import { EmailCompose } from './EmailCompose';
 import html2pdf from 'html2pdf.js';
 
 export function PdfGenerator() {
   const { currentDraft, getTotalPrice } = useQuoteStore();
   const templateRef = useRef<HTMLDivElement>(null);
+  const [showEmailCompose, setShowEmailCompose] = useState(false);
 
   const generatePdf = async () => {
     if (!currentDraft || !templateRef.current) return;
@@ -46,10 +48,16 @@ export function PdfGenerator() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Offerte Preview</h3>
-        <Button onClick={generatePdf} className="flex items-center gap-2">
-          <FileDown className="h-4 w-4" />
-          Download PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={generatePdf} variant="outline" className="flex items-center gap-2">
+            <FileDown className="h-4 w-4" />
+            Download PDF
+          </Button>
+          <Button onClick={() => setShowEmailCompose(true)} className="flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            Offerte verzenden
+          </Button>
+        </div>
       </div>
       
       {/* Hidden template for PDF generation */}
@@ -71,6 +79,14 @@ export function PdfGenerator() {
           />
         </div>
       </div>
+      
+      {/* Email Compose Dialog */}
+      <EmailCompose
+        isOpen={showEmailCompose}
+        onClose={() => setShowEmailCompose(false)}
+        quoteDraft={currentDraft}
+        totalPrice={getTotalPrice()}
+      />
     </div>
   );
 }
