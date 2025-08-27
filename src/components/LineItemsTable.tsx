@@ -68,36 +68,45 @@ export function LineItemsTable() {
     <div className="w-full max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Regelitems</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+            Regelitems
+          </h2>
+          <p className="text-muted-foreground text-lg">
             Bewerk omschrijvingen, tekeningnummers en prijzen
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={clearDraft} variant="outline">
+        <div className="flex gap-3">
+          <Button 
+            onClick={clearDraft} 
+            variant="outline"
+            className="border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Nieuwe Offerte
           </Button>
-          <Button onClick={handleAddEmptyRow} variant="outline">
+          <Button 
+            onClick={handleAddEmptyRow} 
+            className="bg-gradient-primary hover:shadow-lg hover:scale-105 transition-all"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Regel toevoegen
           </Button>
         </div>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden border border-border/40 bg-gradient-card shadow-lg">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="text-left p-2 font-medium text-xs w-12">Preview</th>
-                <th className="text-left p-2 font-medium text-xs min-w-[140px]">Bestand</th>
-                <th className="text-left p-2 font-medium text-xs min-w-[160px]">Omschrijving</th>
-                <th className="text-left p-2 font-medium text-xs w-20">Tekeningnr.</th>
-                <th className="text-left p-2 font-medium text-xs min-w-[100px]">Behandeling</th>
-                <th className="text-left p-2 font-medium text-xs w-20">L (mm)</th>
-                <th className="text-left p-2 font-medium text-xs w-20">B (mm)</th>
-                <th className="text-left p-2 font-medium text-xs w-20">H (mm)</th>
+              <tr className="border-b bg-gradient-to-r from-primary/5 to-accent/5">
+                <th className="text-left p-3 font-semibold text-xs w-12">Preview</th>
+                <th className="text-left p-3 font-semibold text-xs min-w-[140px]">Bestand</th>
+                <th className="text-left p-3 font-semibold text-xs min-w-[160px]">Omschrijving</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">Tekeningnr.</th>
+                <th className="text-left p-3 font-semibold text-xs min-w-[100px]">Behandeling</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">L (mm)</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Prijs (€)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>

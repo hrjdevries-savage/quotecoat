@@ -356,59 +356,72 @@ export function EmailUpload() {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-4">
-          Coat24 Offerte Builder
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Upload je e-mail met bijlagen om automatisch een offerte te genereren
-        </p>
-      </div>
-
       <Card 
-        className={`p-12 border-2 border-dashed transition-all duration-200 ${
+        className={`relative overflow-hidden p-12 border-2 border-dashed transition-all duration-300 ${
           isDragOver 
-            ? 'border-primary bg-primary/5 scale-105' 
-            : 'border-border hover:border-primary/50'
+            ? 'border-primary bg-primary/5 scale-[1.02] shadow-2xl' 
+            : 'border-border/40 hover:border-primary/50 bg-gradient-card'
         } ${isProcessing ? 'opacity-50' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <div className="text-center space-y-6">
+        {/* Background gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50" />
+        
+        <div className="relative text-center space-y-8">
           <div className="flex justify-center">
             {isProcessing ? (
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+              <div className="relative">
+                <div className="animate-spin rounded-full h-20 w-20 border-4 border-primary/20 border-t-primary"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Upload className="h-8 w-8 text-primary" />
+                </div>
+              </div>
             ) : (
-              <div className="p-4 bg-primary/10 rounded-full">
-                <Upload className="h-12 w-12 text-primary" />
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-primary rounded-full blur-xl opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                <div className="relative p-6 bg-background/90 backdrop-blur-sm rounded-full border border-primary/20 shadow-lg group-hover:shadow-xl transition-all">
+                  <Upload className="h-12 w-12 text-primary" />
+                </div>
               </div>
             )}
           </div>
           
           <div>
-            <h3 className="text-xl font-semibold mb-2">
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent mb-3">
               {isProcessing ? 'Bestanden verwerken...' : 'Sleep bestanden hierheen'}
             </h3>
-            <p className="text-muted-foreground mb-4">
-              Ondersteund: .eml, .msg bestanden of losse bijlagen
+            <p className="text-muted-foreground text-lg leading-relaxed max-w-md mx-auto">
+              Upload e-mail bestanden (.eml, .msg) of losse bijlagen om automatisch een offerte te genereren
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <label htmlFor="file-upload">
-              <Button asChild disabled={isProcessing}>
+              <Button 
+                size="lg"
+                className="w-full sm:w-auto bg-gradient-primary hover:shadow-lg hover:scale-105 transition-all" 
+                asChild 
+                disabled={isProcessing}
+              >
                 <span className="cursor-pointer">
-                  <Mail className="mr-2 h-4 w-4" />
+                  <Mail className="mr-2 h-5 w-5" />
                   E-mail uploaden
                 </span>
               </Button>
             </label>
             
             <label htmlFor="attachment-upload">
-              <Button variant="outline" asChild disabled={isProcessing}>
+              <Button 
+                variant="outline" 
+                size="lg"
+                className="w-full sm:w-auto border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:scale-105 transition-all" 
+                asChild 
+                disabled={isProcessing}
+              >
                 <span className="cursor-pointer">
-                  <FileText className="mr-2 h-4 w-4" />
+                  <FileText className="mr-2 h-5 w-5" />
                   Bijlagen uploaden
                 </span>
               </Button>
@@ -433,7 +446,7 @@ export function EmailUpload() {
             disabled={isProcessing}
           />
 
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/80 bg-muted/20 rounded-full px-4 py-2 inline-flex">
             <AlertCircle className="h-4 w-4" />
             <span>Alle bestanden worden lokaal verwerkt en opgeslagen</span>
           </div>
