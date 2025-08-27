@@ -8,63 +8,46 @@ type Props = {
 };
 
 // Dynamic loader for O3DV browser bundle
-function ensureO3DVLoaded(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if ((window as any).OV) {
-      return resolve((window as any).OV);
-    }
+async function injectScriptOnce(src: string, attr: Record<string, string> = {}) {
+  return new Promise<void>((resolve, reject) => {
+    // Als hij al aanwezig is, resolve direct
+    const existing = document.querySelector(`script[data-o3dv-src="${src}"]`) as HTMLScriptElement | null;
+    if (existing && (window as any).OV) return resolve();
 
-    // Check if script is already loading
-    const existingScript = document.querySelector('script[src="/libs/o3dv/o3dv.min.js"]');
-    if (existingScript) {
-      // Wait for existing script to load
-      const checkLoaded = () => {
-        if ((window as any).OV) {
-          return resolve((window as any).OV);
-        }
-        setTimeout(checkLoaded, 100);
-      };
-      checkLoaded();
-      return;
-    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.defer = true;
+    s.dataset.o3dvSrc = src;
+    Object.entries(attr).forEach(([k, v]) => s.setAttribute(k, v));
 
-    // Load CSS first
-    const cssLink = document.createElement('link');
-    cssLink.rel = 'stylesheet';
-    cssLink.href = '/libs/o3dv/o3dv.min.css';
-    document.head.appendChild(cssLink);
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`o3dv script load error: ${src}`));
 
-    // Load JS
-    const script = document.createElement('script');
-    script.src = '/libs/o3dv/o3dv.min.js';
-    script.async = false;
-    
-    script.onload = () => {
-      // Poll for OV to be available
-      const checkOV = () => {
-        if ((window as any).OV) {
-          console.log('[O3DV] Loaded successfully');
-          resolve((window as any).OV);
-        } else {
-          setTimeout(checkOV, 50);
-        }
-      };
-      checkOV();
-    };
+    document.head.appendChild(s);
+  });
+}
 
-    script.onerror = () => {
-      reject(new Error('Failed to load /libs/o3dv/o3dv.min.js - check if file exists in /public/libs/o3dv/'));
-    };
+async function ensureO3DVLoaded(): Promise<any> {
+  const w = window as any;
+  if (w.OV) return w.OV;
 
-    document.head.appendChild(script);
+  // 1) Bestaat het bestand op de juiste plek?
+  const url = '/libs/o3dv/o3dv.min.js'; // LET OP: zonder /public
+  const headRes = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+  if (!headRes.ok) throw new Error(`o3dv not found at ${url} (HTTP ${headRes.status})`);
 
-    // Timeout after 10 seconds
-    setTimeout(() => {
-      if (!(window as any).OV) {
-        reject(new Error('O3DV load timeout - window.OV not available after 10s'));
-      }
-    }, 10000);
+  // 2) Injecteer script en wacht op window.OV
+  await injectScriptOnce(url, { 'data-o3dv': '1' });
+
+  // 3) Poll kort op window.OV
+  const t0 = performance.now();
+  return await new Promise<any>((resolve, reject) => {
+    (function wait() {
+      if ((window as any).OV) return resolve((window as any).OV);
+      if (performance.now() - t0 > 8000) return reject(new Error('window.OV not set after o3dv load'));
+      requestAnimationFrame(wait);
+    })();
   });
 }
 
@@ -178,7 +161,7 @@ export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
       const OV = await ensureO3DVLoaded();
       log('O3DV loaded successfully');
 
-      // libs-locatie
+      // libs-locatie (dit vertelt de viewer waar de importers (WASM) staan)
       if (typeof OV.SetExternalLibLocation === 'function') {
         OV.SetExternalLibLocation('/libs/');
         log('OV.SetExternalLibLocation(/libs/) set');
