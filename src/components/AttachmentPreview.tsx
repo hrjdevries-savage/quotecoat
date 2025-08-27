@@ -73,17 +73,34 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
     const isPDF = attachment.mimeType === 'application/pdf';
     const isCAD = /\.(step|stp|iges|igs|stl|obj|3ds|fbx|dxf)$/i.test(attachment.fileName);
 
-    if (isPDF && attachment.blobUrl) {
+    if (isPDF) {
       console.log('Loading PDF:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
       
       // Set up PDF.js worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       
-      // Load PDF document
-      fetch(attachment.blobUrl)
-        .then(response => response.arrayBuffer())
-        .then(arrayBuffer => {
-          console.log('PDF blob size:', arrayBuffer.byteLength);
+      // Try to load PDF from either blob URL or file directly
+      const loadPdf = async () => {
+        try {
+          let arrayBuffer: ArrayBuffer;
+          
+          if (attachment.file) {
+            // If we have the original file, use it directly
+            console.log('Loading PDF from file object');
+            arrayBuffer = await attachment.file.arrayBuffer();
+          } else if (attachment.blobUrl) {
+            // Try to fetch from blob URL
+            console.log('Loading PDF from blob URL');
+            const response = await fetch(attachment.blobUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch blob: ${response.status} ${response.statusText}`);
+            }
+            arrayBuffer = await response.arrayBuffer();
+          } else {
+            throw new Error('No file data available');
+          }
+          
+          console.log('PDF data size:', arrayBuffer.byteLength);
           
           // Check if it's actually a valid PDF
           const uint8Array = new Uint8Array(arrayBuffer);
@@ -94,21 +111,22 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
             throw new Error('Invalid PDF header: ' + header);
           }
           
-          return pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        })
-        .then((pdf) => {
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
           console.log('PDF loaded successfully, pages:', pdf.numPages);
           setPdfDocument(pdf);
           setTotalPages(pdf.numPages);
           setCurrentPage(1);
           renderPdfPage(pdf, 1, scale);
-        })
-        .catch((error) => {
+          
+        } catch (error) {
           console.error('Error loading PDF:', error);
           if (pdfContainerRef.current) {
             pdfContainerRef.current.innerHTML = '<p class="text-destructive p-4">Error loading PDF preview: ' + error.message + '</p>';
           }
-        });
+        }
+      };
+      
+      loadPdf();
     } else if (isCAD && attachment.blobUrl) {
       console.log('Loading STEP/CAD file:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
     }
