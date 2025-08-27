@@ -215,10 +215,114 @@ export const useQuoteActions = () => {
     }
   };
 
+  const loadQuoteForEditing = async (quoteId: string): Promise<QuoteDraft | null> => {
+    try {
+      setIsLoading(true);
+
+      // Load the quote
+      const { data: quoteData, error: quoteError } = await supabase
+        .from('quotes')
+        .select('*')
+        .eq('id', quoteId)
+        .single();
+
+      if (quoteError) {
+        console.error('Error loading quote:', quoteError);
+        toast({
+          title: "Fout",
+          description: "Kon offerte niet laden",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Load line items
+      const { data: lineItemsData, error: lineItemsError } = await supabase
+        .from('quote_line_items')
+        .select('*')
+        .eq('quote_id', quoteId);
+
+      if (lineItemsError) {
+        console.error('Error loading line items:', lineItemsError);
+        toast({
+          title: "Fout",
+          description: "Kon regel items niet laden",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Load attachments
+      const { data: attachmentsData, error: attachmentsError } = await supabase
+        .from('quote_attachments')
+        .select('*')
+        .eq('quote_id', quoteId);
+
+      if (attachmentsError) {
+        console.error('Error loading attachments:', attachmentsError);
+        toast({
+          title: "Fout",
+          description: "Kon bijlagen niet laden",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Convert to QuoteDraft format
+      const quoteDraft: QuoteDraft = {
+        meta: {
+          clientName: quoteData.client_name,
+          clientEmail: quoteData.client_email || '',
+          clientAddress: quoteData.client_address || '',
+          clientCity: quoteData.client_city || '',
+          clientPostalCode: quoteData.client_postal_code || '',
+          clientReference: quoteData.client_reference || '',
+          quoteNumber: quoteData.quote_number,
+          validityDays: quoteData.validity_days,
+          terms: quoteData.terms || '',
+          createdAt: quoteData.created_at,
+        },
+        lineItems: lineItemsData?.map(item => ({
+          id: item.id,
+          attachmentId: item.attachment_id || undefined,
+          fileName: item.file_name || undefined,
+          description: item.description,
+          drawingNumber: item.drawing_number || '',
+          behandeling: item.behandeling || '',
+          lengte: item.lengte ? Number(item.lengte) : null,
+          breedte: item.breedte ? Number(item.breedte) : null,
+          hoogte: item.hoogte ? Number(item.hoogte) : null,
+          gewichtKg: item.gewicht_kg ? Number(item.gewicht_kg) : null,
+          price: item.price ? Number(item.price) : null,
+        })) || [],
+        attachments: attachmentsData?.map(att => ({
+          id: att.original_attachment_id,
+          fileName: att.file_name,
+          mimeType: att.mime_type,
+          sizeBytes: att.size_bytes,
+          // Note: We don't load the actual file for editing, just metadata
+        })) || [],
+      };
+
+      return quoteDraft;
+    } catch (error) {
+      console.error('Error loading quote for editing:', error);
+      toast({
+        title: "Fout",
+        description: "Kon offerte niet laden voor bewerking",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     saveQuoteToDatabase,
     generateAndSavePdf,
     sendQuoteEmail,
+    loadQuoteForEditing,
     isLoading
   };
 };

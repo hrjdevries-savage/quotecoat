@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuoteActions } from '@/hooks/useQuoteActions';
+import { useQuoteStore } from '@/store/useQuoteStore';
 
 interface SavedQuote {
   id: string;
@@ -24,6 +26,8 @@ export function Quotes() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { loadQuoteForEditing } = useQuoteActions();
+  const { setDraft } = useQuoteStore();
 
   useEffect(() => {
     loadQuotes();
@@ -262,12 +266,12 @@ export function Quotes() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      // TODO: Implement edit quote functionality
-                      toast({
-                        title: "Binnenkort beschikbaar",
-                        description: "Bewerken functionaliteit wordt binnenkort toegevoegd",
-                      });
+                    onClick={async () => {
+                      const quoteDraft = await loadQuoteForEditing(quote.id);
+                      if (quoteDraft) {
+                        setDraft(quoteDraft);
+                        navigate('/');
+                      }
                     }}
                   >
                     <Edit className="h-4 w-4 mr-1" />
