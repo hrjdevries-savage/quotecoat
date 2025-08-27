@@ -39,7 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from('quotes')
       .select('*')
       .eq('id', quoteId)
-      .single();
+      .maybeSingle();
 
     if (quoteError || !quote) {
       console.error("Quote not found:", quoteError);

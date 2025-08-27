@@ -8,40 +8,74 @@ export const useQuoteActions = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const saveQuoteToDatabase = async (quoteDraft: QuoteDraft, totalPrice: number): Promise<string | null> => {
+  const saveQuoteToDatabase = async (quoteDraft: QuoteDraft, totalPrice: number, existingQuoteId?: string): Promise<string | null> => {
     try {
       setIsLoading(true);
 
-      // First, save the quote
-      const { data: quoteData, error: quoteError } = await supabase
-        .from('quotes')
-        .insert({
-          quote_number: quoteDraft.meta.quoteNumber,
-          client_name: quoteDraft.meta.clientName,
-          client_email: quoteDraft.meta.clientEmail,
-          client_address: quoteDraft.meta.clientAddress,
-          client_city: quoteDraft.meta.clientCity,
-          client_postal_code: quoteDraft.meta.clientPostalCode,
-          client_reference: quoteDraft.meta.clientReference,
-          validity_days: quoteDraft.meta.validityDays,
-          terms: quoteDraft.meta.terms,
-          total_price: totalPrice,
-          status: 'draft'
-        })
-        .select()
-        .single();
+      let quoteId = existingQuoteId;
 
-      if (quoteError) {
-        console.error('Error saving quote:', quoteError);
-        toast({
-          title: "Fout",
-          description: "Kon offerte niet opslaan",
-          variant: "destructive",
-        });
-        return null;
+      if (!quoteId) {
+        // Create new quote
+        const { data: quoteData, error: quoteError } = await supabase
+          .from('quotes')
+          .insert({
+            quote_number: quoteDraft.meta.quoteNumber,
+            client_name: quoteDraft.meta.clientName,
+            client_email: quoteDraft.meta.clientEmail,
+            client_address: quoteDraft.meta.clientAddress,
+            client_city: quoteDraft.meta.clientCity,
+            client_postal_code: quoteDraft.meta.clientPostalCode,
+            client_reference: quoteDraft.meta.clientReference,
+            validity_days: quoteDraft.meta.validityDays,
+            terms: quoteDraft.meta.terms,
+            total_price: totalPrice,
+            status: 'draft'
+          })
+          .select()
+          .single();
+
+        if (quoteError) {
+          console.error('Error saving quote:', quoteError);
+          toast({
+            title: "Fout",
+            description: "Kon offerte niet opslaan",
+            variant: "destructive",
+          });
+          return null;
+        }
+
+        quoteId = quoteData.id;
+      } else {
+        // Update existing quote
+        const { error: updateError } = await supabase
+          .from('quotes')
+          .update({
+            client_name: quoteDraft.meta.clientName,
+            client_email: quoteDraft.meta.clientEmail,
+            client_address: quoteDraft.meta.clientAddress,
+            client_city: quoteDraft.meta.clientCity,
+            client_postal_code: quoteDraft.meta.clientPostalCode,
+            client_reference: quoteDraft.meta.clientReference,
+            validity_days: quoteDraft.meta.validityDays,
+            terms: quoteDraft.meta.terms,
+            total_price: totalPrice,
+          })
+          .eq('id', quoteId);
+
+        if (updateError) {
+          console.error('Error updating quote:', updateError);
+          toast({
+            title: "Fout",
+            description: "Kon offerte niet bijwerken",
+            variant: "destructive",
+          });
+          return null;
+        }
+
+        // Clear existing line items and attachments for update
+        await supabase.from('quote_line_items').delete().eq('quote_id', quoteId);
+        await supabase.from('quote_attachments').delete().eq('quote_id', quoteId);
       }
-
-      const quoteId = quoteData.id;
 
       // Save line items
       if (quoteDraft.lineItems.length > 0) {
@@ -75,7 +109,7 @@ export const useQuoteActions = () => {
           
           const { error: uploadError } = await supabase.storage
             .from('quote-attachments')
-            .upload(fileName, attachment.file);
+            .upload(fileName, attachment.file, { upsert: true });
 
           if (!uploadError) {
             await supabase
@@ -134,9 +168,13 @@ export const useQuoteActions = () => {
       const pdfBlob = await html2pdf().set(opt).from(templateRef.current).outputPdf('blob');
       
       // If no quoteId provided, save the quote first
-      let finalQuoteId = quoteId;
+      let finalQuoteId = quoteId || quoteDraft.id;
       if (!finalQuoteId) {
         finalQuoteId = await saveQuoteToDatabase(quoteDraft, totalPrice);
+        if (!finalQuoteId) return null;
+      } else {
+        // For existing quotes, update with new data
+        finalQuoteId = await saveQuoteToDatabase(quoteDraft, totalPrice, finalQuoteId);
         if (!finalQuoteId) return null;
       }
 
@@ -303,6 +341,7 @@ export const useQuoteActions = () => {
 
       // Convert to QuoteDraft format
       const quoteDraft: QuoteDraft = {
+        id: quoteId, // Include the quote ID
         meta: {
           clientName: quoteData.client_name,
           clientEmail: quoteData.client_email || '',

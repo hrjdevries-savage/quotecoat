@@ -42,6 +42,7 @@ export type EmailParseInfo = {
 };
 
 export type QuoteDraft = {
+  id?: string; // Add id field for existing quotes
   meta: QuoteMeta;
   lineItems: LineItem[];
   attachments: Attachment[];
