@@ -1,19 +1,25 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-type Props = { 
-  file?: File | null; 
-  blobUrl?: string; 
-  fileName?: string; 
-  height?: number; 
+type Props = {
+  file?: File | null;
+  blobUrl?: string;
+  fileName?: string;
+  height?: number;
 };
 
 export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState('init');
 
   useEffect(() => {
     let viewer: any | null = null;
     let disposed = false;
     let ro: ResizeObserver | null = null;
+
+    const log = (msg: string, ...args: any[]) => {
+      setStatus(msg);
+      console.log('[StepViewer]', msg, ...args);
+    };
 
     const waitForOV = (): Promise<any> =>
       new Promise((resolve, reject) => {
@@ -28,76 +34,136 @@ export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
 
     const waitForLayout = (el: HTMLElement): Promise<void> =>
       new Promise((resolve) => {
-        const start = performance.now();
-        (function check() {
-          const rect = el.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) return resolve();
-          if (performance.now() - start > 1500) return resolve(); // fail-soft
-          requestAnimationFrame(check);
+        (function tick() {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) return resolve();
+          requestAnimationFrame(tick);
         })();
       });
+
+    async function getSrcFile(): Promise<File | null> {
+      if (file) {
+        log('file: using provided File', { name: file.name, size: file.size });
+        return file;
+      }
+      if (blobUrl && fileName) {
+        log('file: fetching from blobUrl', { blobUrl, fileName });
+        const res = await fetch(blobUrl);
+        if (!res.ok) throw new Error(`Blob fetch failed: ${res.status} ${res.statusText}`);
+        const buf = await res.arrayBuffer();
+        const f = new File([buf], fileName, { type: 'model/step' });
+        log('file: created File from blob', { name: f.name, size: f.size });
+        return f;
+      }
+      return null;
+    }
+
+    async function loadFromFile(OV: any, src: File) {
+      // Gebruik FileList route
+      const dt = new DataTransfer();
+      dt.items.add(src);
+      log('viewer: LoadModelFromFileList start', { name: src.name });
+
+      viewer!.LoadModelFromFileList(
+        dt.files,
+        undefined,
+        () => {
+          if (disposed) return;
+          log('viewer: import success → FitModelToWindow');
+          try {
+            viewer!.FitModelToWindow();
+          } catch (e) {
+            console.warn('FitModelToWindow failed', e);
+          }
+        },
+        (progress: number) => {
+          // progress 0..100
+          // log('import progress', progress);
+        },
+        (err: any) => {
+          console.error('STEP import error', err);
+          log('viewer: import error (see console)');
+        }
+      );
+    }
+
+    async function loadFallbackUrl(OV: any) {
+      // Fallback om rendering te testen zónder upload
+      // Zet een testbestand neer: /public/samples/test.step
+      const url = '/samples/test.step';
+      log('viewer: fallback LoadModelFromUrlList', { url });
+      const files = [{ url, name: 'test.step' }];
+
+      try {
+        viewer!.LoadModelFromUrlList(
+          files as any,
+          undefined,
+          () => {
+            if (disposed) return;
+            log('viewer: fallback import success → FitModelToWindow');
+            try {
+              viewer!.FitModelToWindow();
+            } catch {}
+          },
+          (progress: number) => {
+            // log('fallback progress', progress);
+          },
+          (err: any) => {
+            console.error('fallback import error', err);
+            log('viewer: fallback import error (see console)');
+          }
+        );
+      } catch (e) {
+        console.error('fallback call failed', e);
+        log('viewer: fallback call threw (see console)');
+      }
+    }
 
     async function init() {
       const el = containerRef.current;
       if (!el) return;
 
-      // 1) Wacht op globale OV (browser-bundle via <script>) en op layout
+      setStatus('waiting for OV…');
       const OV = await waitForOV();
-      el.style.minHeight = `${height}px`;
-      await waitForLayout(el);
 
-      // 2) Stel libs-locatie in en initialiseer viewer
-      try {
-        if (typeof OV.SetExternalLibLocation === 'function') {
-          OV.SetExternalLibLocation('/libs/');
-        }
-      } catch (e) {
-        console.warn('SetExternalLibLocation niet beschikbaar; controleer bundel-load via <script>.', e);
+      // libs-locatie
+      if (typeof OV.SetExternalLibLocation === 'function') {
+        OV.SetExternalLibLocation('/libs/');
+        log('OV.SetExternalLibLocation(/libs/) set');
+      } else {
+        log('OV.SetExternalLibLocation missing – check <script> include of o3dv.min.js');
       }
 
+      // layout
+      el.style.minHeight = `${height}px`;
+      await waitForLayout(el);
+      const r0 = el.getBoundingClientRect();
+      log('layout ready', { width: r0.width, height: r0.height });
+
+      // viewer init
       viewer = new OV.EmbeddedViewer(el, {
         backgroundColor: new OV.RGBAColor(255, 255, 255, 255),
         defaultColor: new OV.RGBColor(200, 200, 200),
-        edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
+        edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1)
       });
+      log('viewer created');
 
-      // 3) Bronbestand bepalen
-      let srcFile = file ?? null;
-      if (!srcFile && blobUrl && fileName) {
-        const res = await fetch(blobUrl);
-        if (!res.ok) throw new Error(`Blob fetch failed: ${res.status} ${res.statusText}`);
-        const buf = await res.arrayBuffer();
-        srcFile = new File([buf], fileName, { type: 'model/step' });
-      }
-      if (!srcFile) {
-        console.warn('Geen bronbestand voor STEP-viewer.');
-        return;
-      }
-
-      // 4) FileList maken en laden
-      const dt = new DataTransfer();
-      dt.items.add(srcFile);
-
-      viewer.LoadModelFromFileList(
-        dt.files,
-        undefined,
-        () => {
-          if (disposed) return;
-          try {
-            viewer.FitModelToWindow();
-          } catch (e) {
-            console.warn('FitModelToWindow na load faalde:', e);
-          }
-        },
-        (progress: number) => {
-          // optioneel: console.log('Import progress', progress);
-        },
-        (err: any) => {
-          console.error('STEP import error', err);
+      // bron laden
+      try {
+        const src = await getSrcFile();
+        if (src) {
+          await loadFromFile(OV, src);
+        } else {
+          log('no source file → using fallback URL');
+          await loadFallbackUrl(OV);
         }
-      );
+      } catch (e) {
+        console.error('load source failed', e);
+        log('load source failed; trying fallback URL');
+        await loadFallbackUrl(OV);
+      }
 
-      // 5) Resize handling (Dialog open/resize)
+      // resize/fits
       const refit = () => {
         if (!viewer) return;
         try {
@@ -109,10 +175,13 @@ export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
       ro.observe(el);
       window.addEventListener('resize', refit);
       setTimeout(refit, 80);
-      setTimeout(refit, 250); // nog een keer na layout settle
+      setTimeout(refit, 250);
     }
 
-    init().catch((e) => console.error('Init O3DV error', e));
+    init().catch((e) => {
+      console.error('Init O3DV error', e);
+      setStatus('Init failed: ' + (e as Error).message);
+    });
 
     return () => {
       disposed = true;
@@ -122,5 +191,11 @@ export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
     };
   }, [file, blobUrl, fileName, height]);
 
-  return <div ref={containerRef} className="w-full rounded-lg border bg-white" style={{ height }} />;
+  return (
+    <div className="w-full rounded-lg border bg-white relative" style={{ height }} ref={containerRef}>
+      <div className="absolute top-1 right-2 text-xs text-muted-foreground bg-white/80 rounded px-2 py-1">
+        {status}
+      </div>
+    </div>
+  );
 }
