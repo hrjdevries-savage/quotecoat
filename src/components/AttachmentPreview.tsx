@@ -3,6 +3,7 @@ import { X, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Attachment } from '@/types';
+import { StepViewer } from './StepViewer';
 import * as pdfjsLib from 'pdfjs-dist';
 
 interface AttachmentPreviewProps {
@@ -58,34 +59,7 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
       });
     } else if (isCAD && attachment.blobUrl) {
       console.log('Loading STEP/CAD file:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
-      
-      const container = pdfContainerRef.current;
-      if (!container) return;
-      
-      // For STEP files, we need to convert blob URL to a publicly accessible URL
-      // Since Online3DViewer needs direct file access, we'll use a different approach
-      container.innerHTML = `
-        <div class="w-full h-96 border rounded-lg bg-background relative overflow-hidden">
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="text-center space-y-4">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p class="text-sm text-muted-foreground">Loading 3D model...</p>
-            </div>
-          </div>
-          <iframe 
-            src="https://3dviewer.net/embed.html#model=${encodeURIComponent(attachment.blobUrl)}"
-            width="100%" 
-            height="100%"
-            frameborder="0"
-            style="border-radius: 8px;"
-            onload="console.log('3D viewer loaded')"
-            onerror="console.error('Failed to load 3D viewer')"
-          />
-        </div>
-      `;
-      
-      // Alternative: Use local Three.js viewer if Online3DViewer doesn't work with blob URLs
-      // We could implement a local STEP file viewer using Three.js STEPLoader
+      // The StepViewer component will handle the 3D rendering
     }
   }, [attachment, isOpen]);
 
@@ -130,12 +104,8 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
             </div>
           )}
           
-          {isCAD && (
-            <div className="space-y-4">
-              <div ref={pdfContainerRef} className="w-full h-96 border rounded-lg flex items-center justify-center bg-muted/30">
-                <p className="text-muted-foreground">Loading 3D preview...</p>
-              </div>
-            </div>
+          {isCAD && attachment.blobUrl && (
+            <StepViewer blobUrl={attachment.blobUrl} fileName={attachment.fileName} />
           )}
           
           {isImage && attachment.blobUrl && (
