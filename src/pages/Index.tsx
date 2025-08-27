@@ -25,7 +25,7 @@ const Index = () => {
               <h1 className="mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
                 Coating quotes made simple
               </h1>
-              <p className="text-xl text-muted-foreground mb-8 max-w-2xl leading-relaxed">
+              <p className="text-xl text-muted-foreground mb-8 max-w-2xl leading-relaxed mt-8">
                 Upload your specifications, get instant quotes, and streamline your manufacturing workflow with our AI-powered platform.
               </p>
             </div>
