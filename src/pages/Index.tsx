@@ -8,10 +8,12 @@ const Index = () => {
   const { currentDraft } = useQuoteStore();
 
   return (
-    <div className="min-h-screen">
+    <div className="relative min-h-screen">
+      {/* Global background gradient */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/15 via-accent/15 to-accent/15"></div>
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden pb-8">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/15 via-accent/15 to-transparent" />
         <div className="container relative mx-auto px-4 py-16">
           <div className="max-w-4xl">
             <div className="mb-6">
@@ -30,18 +32,16 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative">
-        <div className="container relative mx-auto px-4 pb-16 space-y-12">
-          {!currentDraft ? (
-            <EmailUpload />
-          ) : (
-            <div className="space-y-8">
-              <LineItemsTable />
-              <CustomerInfo />
-              <PdfGenerator />
-            </div>
-          )}
-        </div>
+      <div className="container mx-auto px-4 pb-16 space-y-12">
+        {!currentDraft ? (
+          <EmailUpload />
+        ) : (
+          <div className="space-y-8">
+            <LineItemsTable />
+            <CustomerInfo />
+            <PdfGenerator />
+          </div>
+        )}
       </div>
     </div>
   );
