@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      email_attachments: {
+        Row: {
+          file_name: string | null
+          id: string
+          message_id: string | null
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+        }
+        Insert: {
+          file_name?: string | null
+          id?: string
+          message_id?: string | null
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+        }
+        Update: {
+          file_name?: string | null
+          id?: string
+          message_id?: string | null
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "email_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_messages: {
+        Row: {
+          from_email: string | null
+          id: string
+          owner_id: string
+          raw_provider_id: string | null
+          received_at: string | null
+          subject: string | null
+        }
+        Insert: {
+          from_email?: string | null
+          id?: string
+          owner_id: string
+          raw_provider_id?: string | null
+          received_at?: string | null
+          subject?: string | null
+        }
+        Update: {
+          from_email?: string | null
+          id?: string
+          owner_id?: string
+          raw_provider_id?: string | null
+          received_at?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
+      email_settings: {
+        Row: {
+          bcc_enabled: boolean | null
+          created_at: string | null
+          inbound_alias: string
+          owner_id: string
+        }
+        Insert: {
+          bcc_enabled?: boolean | null
+          created_at?: string | null
+          inbound_alias: string
+          owner_id: string
+        }
+        Update: {
+          bcc_enabled?: boolean | null
+          created_at?: string | null
+          inbound_alias?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
       quote_attachments: {
         Row: {
           created_at: string
@@ -68,6 +151,7 @@ export type Database = {
           hoogte: number | null
           id: string
           lengte: number | null
+          original_attachment_id: string | null
           price: number | null
           quote_id: string
         }
@@ -83,6 +167,7 @@ export type Database = {
           hoogte?: number | null
           id?: string
           lengte?: number | null
+          original_attachment_id?: string | null
           price?: number | null
           quote_id: string
         }
@@ -98,6 +183,7 @@ export type Database = {
           hoogte?: number | null
           id?: string
           lengte?: number | null
+          original_attachment_id?: string | null
           price?: number | null
           quote_id?: string
         }
@@ -121,6 +207,7 @@ export type Database = {
           client_reference: string | null
           created_at: string
           id: string
+          owner_id: string | null
           pdf_file_path: string | null
           quote_number: string
           status: string | null
@@ -138,6 +225,7 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
+          owner_id?: string | null
           pdf_file_path?: string | null
           quote_number: string
           status?: string | null
@@ -155,6 +243,7 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
+          owner_id?: string | null
           pdf_file_path?: string | null
           quote_number?: string
           status?: string | null
