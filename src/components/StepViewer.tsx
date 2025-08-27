@@ -7,6 +7,67 @@ type Props = {
   height?: number;
 };
 
+// Dynamic loader for O3DV browser bundle
+function ensureO3DVLoaded(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if ((window as any).OV) {
+      return resolve((window as any).OV);
+    }
+
+    // Check if script is already loading
+    const existingScript = document.querySelector('script[src="/libs/o3dv/o3dv.min.js"]');
+    if (existingScript) {
+      // Wait for existing script to load
+      const checkLoaded = () => {
+        if ((window as any).OV) {
+          return resolve((window as any).OV);
+        }
+        setTimeout(checkLoaded, 100);
+      };
+      checkLoaded();
+      return;
+    }
+
+    // Load CSS first
+    const cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = '/libs/o3dv/o3dv.min.css';
+    document.head.appendChild(cssLink);
+
+    // Load JS
+    const script = document.createElement('script');
+    script.src = '/libs/o3dv/o3dv.min.js';
+    script.async = false;
+    
+    script.onload = () => {
+      // Poll for OV to be available
+      const checkOV = () => {
+        if ((window as any).OV) {
+          console.log('[O3DV] Loaded successfully');
+          resolve((window as any).OV);
+        } else {
+          setTimeout(checkOV, 50);
+        }
+      };
+      checkOV();
+    };
+
+    script.onerror = () => {
+      reject(new Error('Failed to load /libs/o3dv/o3dv.min.js - check if file exists in /public/libs/o3dv/'));
+    };
+
+    document.head.appendChild(script);
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      if (!(window as any).OV) {
+        reject(new Error('O3DV load timeout - window.OV not available after 10s'));
+      }
+    }, 10000);
+  });
+}
+
 export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState('init');
@@ -20,17 +81,6 @@ export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
       setStatus(msg);
       console.log('[StepViewer]', msg, ...args);
     };
-
-    const waitForOV = (): Promise<any> =>
-      new Promise((resolve, reject) => {
-        const start = performance.now();
-        (function check() {
-          const OV = (window as any).OV;
-          if (OV) return resolve(OV);
-          if (performance.now() - start > 5000) return reject(new Error('O3DV not loaded'));
-          requestAnimationFrame(check);
-        })();
-      });
 
     const waitForLayout = (el: HTMLElement): Promise<void> =>
       new Promise((resolve) => {
@@ -123,15 +173,17 @@ export function StepViewer({ file, blobUrl, fileName, height = 600 }: Props) {
       const el = containerRef.current;
       if (!el) return;
 
-      setStatus('waiting for OV…');
-      const OV = await waitForOV();
+      // Dynamically ensure O3DV is loaded
+      setStatus('loading O3DV…');
+      const OV = await ensureO3DVLoaded();
+      log('O3DV loaded successfully');
 
       // libs-locatie
       if (typeof OV.SetExternalLibLocation === 'function') {
         OV.SetExternalLibLocation('/libs/');
         log('OV.SetExternalLibLocation(/libs/) set');
       } else {
-        log('OV.SetExternalLibLocation missing – check <script> include of o3dv.min.js');
+        log('OV.SetExternalLibLocation missing');
       }
 
       // layout
