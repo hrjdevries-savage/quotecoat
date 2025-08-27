@@ -268,6 +268,39 @@ export const useQuoteActions = () => {
         return null;
       }
 
+      // Download attachment files and create blob URLs
+      const attachments = [];
+      if (attachmentsData && attachmentsData.length > 0) {
+        for (const attachment of attachmentsData) {
+          try {
+            // Download the file from storage
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from('quote-attachments')
+              .download(attachment.file_path);
+
+            if (downloadError) {
+              console.error('Error downloading attachment:', downloadError);
+              continue; // Skip this attachment if download fails
+            }
+
+            // Create blob URL for previewer
+            const blobUrl = URL.createObjectURL(fileData);
+
+            attachments.push({
+              id: attachment.original_attachment_id,
+              fileName: attachment.file_name,
+              mimeType: attachment.mime_type,
+              sizeBytes: attachment.size_bytes,
+              blobUrl: blobUrl,
+              file: fileData // Add the actual file data
+            });
+          } catch (error) {
+            console.error('Error processing attachment:', error);
+            // Continue with other attachments
+          }
+        }
+      }
+
       // Convert to QuoteDraft format
       const quoteDraft: QuoteDraft = {
         meta: {
@@ -295,13 +328,7 @@ export const useQuoteActions = () => {
           gewichtKg: item.gewicht_kg ? Number(item.gewicht_kg) : null,
           price: item.price ? Number(item.price) : null,
         })) || [],
-        attachments: attachmentsData?.map(att => ({
-          id: att.original_attachment_id,
-          fileName: att.file_name,
-          mimeType: att.mime_type,
-          sizeBytes: att.size_bytes,
-          // Note: We don't load the actual file for editing, just metadata
-        })) || [],
+        attachments: attachments,
       };
 
       return quoteDraft;
