@@ -22,72 +22,127 @@ export function EmailUpload() {
     const isEml = file.name.toLowerCase().endsWith('.eml');
     
     if (isMsg) {
-      // MSG files have a different structure - try multiple patterns
+      // MSG files are Microsoft compound documents - we need to parse them differently
       console.log('Parsing MSG file format');
       
-      // Pattern 1: Look for embedded filenames and base64 content
-      const msgAttachmentRegex = /([A-Za-z0-9+/=]{200,})/g;
-      const filenameRegex = /([^\\/:*?"<>|]+\.(pdf|png|jpe?g|step?|stp|iges?|igs|stl|obj|3ds|fbx|dxf))/gi;
+      // Read as binary data instead of text
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
       
-      // Extract potential filenames
-      const filenames = [...text.matchAll(filenameRegex)].map(match => match[1]);
-      console.log('Found potential filenames in MSG:', filenames);
+      // Convert to text for searching but preserve binary data
+      const textContent = new TextDecoder('latin1').decode(uint8Array);
       
-      // Extract potential base64 blocks
-      const base64Blocks = [...text.matchAll(msgAttachmentRegex)].map(match => match[1]);
-      console.log('Found potential base64 blocks:', base64Blocks.length);
+      // Look for attachment markers in MSG files
+      const attachmentMarkers = [
+        /__attach_version1\.0_#/g,
+        /__substg1\.0_3701000D/g, // Attachment data
+        /__substg1\.0_3704001F/g, // Attachment filename
+        /__substg1\.0_370E001F/g  // Attachment MIME type
+      ];
       
-      // Try to match filenames with base64 content
-      for (let i = 0; i < Math.min(filenames.length, base64Blocks.length); i++) {
-        const filename = filenames[i];
-        const base64Content = base64Blocks[i].replace(/[\r\n\s]/g, '');
+      // Find filename patterns more specifically for MSG
+      const filenamePatterns = [
+        /([^\\/:*?"<>|\x00-\x1f]+\.(pdf|png|jpe?g|step?|stp|iges?|igs|stl|obj|3ds|fbx|dxf))[\x00\s]/gi,
+        /filename[*]?[:=]\s*"?([^"\r\n\x00]+\.(pdf|png|jpe?g|step?|stp|iges?|igs|stl|obj|3ds|fbx|dxf))"?/gi
+      ];
+      
+      let foundFilenames: string[] = [];
+      
+      for (const pattern of filenamePatterns) {
+        const matches = [...textContent.matchAll(pattern)];
+        foundFilenames = foundFilenames.concat(matches.map(match => match[1]));
+      }
+      
+      // Remove duplicates and clean up
+      foundFilenames = [...new Set(foundFilenames)].filter(name => 
+        name && name.length > 0 && name.length < 255
+      );
+      
+      console.log('Found filenames in MSG:', foundFilenames);
+      
+      // Look for base64 encoded content near filenames
+      for (const filename of foundFilenames) {
+        console.log('Processing MSG attachment:', filename);
         
-        console.log('Attempting to process MSG attachment:', filename, 'Base64 length:', base64Content.length);
+        // Find the position of this filename
+        const filenamePos = textContent.indexOf(filename);
+        if (filenamePos === -1) continue;
         
-        try {
-          // Add padding if needed
-          const paddedBase64 = base64Content + '='.repeat((4 - base64Content.length % 4) % 4);
-          
-          const byteCharacters = atob(paddedBase64);
-          console.log('Decoded byte length for', filename, ':', byteCharacters.length);
-          
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let j = 0; j < byteCharacters.length; j++) {
-            byteNumbers[j] = byteCharacters.charCodeAt(j);
+        // Search for base64 content in a reasonable range around the filename
+        const searchStart = Math.max(0, filenamePos - 10000);
+        const searchEnd = Math.min(textContent.length, filenamePos + 50000);
+        const searchArea = textContent.substring(searchStart, searchEnd);
+        
+        // Look for substantial base64 blocks
+        const base64Regex = /([A-Za-z0-9+/]{100,}={0,2})/g;
+        const base64Matches = [...searchArea.matchAll(base64Regex)];
+        
+        console.log(`Found ${base64Matches.length} potential base64 blocks for ${filename}`);
+        
+        // Try each base64 block to see which one produces valid content
+        for (const base64Match of base64Matches) {
+          try {
+            const base64Content = base64Match[1];
+            const paddedBase64 = base64Content + '='.repeat((4 - base64Content.length % 4) % 4);
+            
+            const byteCharacters = atob(paddedBase64);
+            
+            // Skip if too small or too large
+            if (byteCharacters.length < 1000 || byteCharacters.length > 50000000) continue;
+            
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let j = 0; j < byteCharacters.length; j++) {
+              byteNumbers[j] = byteCharacters.charCodeAt(j);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            
+            // Validate content based on file type
+            let isValid = true;
+            if (filename.toLowerCase().endsWith('.pdf')) {
+              const pdfHeader = String.fromCharCode.apply(null, Array.from(byteArray.slice(0, 4)));
+              isValid = pdfHeader.startsWith('%PDF');
+            } else if (filename.toLowerCase().endsWith('.png')) {
+              // PNG signature: 89 50 4E 47
+              isValid = byteArray[0] === 0x89 && byteArray[1] === 0x50 && byteArray[2] === 0x4E && byteArray[3] === 0x47;
+            } else if (filename.toLowerCase().match(/\.(step|stp)$/)) {
+              // STEP files typically start with "ISO-10303"
+              const stepHeader = String.fromCharCode.apply(null, Array.from(byteArray.slice(0, 20)));
+              isValid = stepHeader.includes('ISO-10303') || stepHeader.includes('STEP');
+            }
+            
+            if (!isValid) {
+              console.log(`Invalid content for ${filename}, trying next base64 block`);
+              continue;
+            }
+            
+            // Determine MIME type
+            let mimeType = 'application/octet-stream';
+            if (filename.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+            else if (filename.toLowerCase().match(/\.(jpg|jpeg)$/)) mimeType = 'image/jpeg';
+            else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+            else if (filename.toLowerCase().match(/\.(step|stp)$/)) mimeType = 'application/step';
+            else if (filename.toLowerCase().match(/\.(iges|igs)$/)) mimeType = 'application/iges';
+            
+            const blob = new Blob([byteArray], { type: mimeType });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            console.log('Successfully created blob for MSG attachment:', filename, 'Size:', blob.size);
+            
+            const attachment: Attachment = {
+              id: `att_${Date.now()}_${attachments.length}`,
+              fileName: filename,
+              mimeType: mimeType,
+              sizeBytes: byteArray.length,
+              blobUrl: blobUrl,
+            };
+            
+            attachments.push(attachment);
+            break; // Found valid content, move to next filename
+            
+          } catch (error) {
+            console.log('Error processing base64 block for', filename, ':', error.message);
+            continue; // Try next base64 block
           }
-          const byteArray = new Uint8Array(byteNumbers);
-          
-          // Basic validation - check if decoded content makes sense
-          if (byteArray.length < 100) {
-            console.log('Skipping small decoded content for:', filename);
-            continue;
-          }
-          
-          // Determine MIME type based on file extension
-          let mimeType = 'application/octet-stream';
-          if (filename.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
-          else if (filename.toLowerCase().match(/\.(jpg|jpeg)$/)) mimeType = 'image/jpeg';
-          else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-          else if (filename.toLowerCase().match(/\.(step|stp)$/)) mimeType = 'application/step';
-          else if (filename.toLowerCase().match(/\.(iges|igs)$/)) mimeType = 'application/iges';
-          
-          const blob = new Blob([byteArray], { type: mimeType });
-          const blobUrl = URL.createObjectURL(blob);
-          
-          console.log('Created blob for MSG attachment:', filename, 'URL:', blobUrl, 'Size:', blob.size);
-          
-          const attachment: Attachment = {
-            id: `att_${Date.now()}_${attachments.length}`,
-            fileName: filename,
-            mimeType: mimeType,
-            sizeBytes: byteArray.length,
-            blobUrl: blobUrl,
-          };
-          
-          attachments.push(attachment);
-          console.log('Successfully processed MSG attachment:', filename);
-        } catch (error) {
-          console.error('Error processing MSG attachment:', filename, error);
         }
       }
     } else if (isEml) {
