@@ -223,7 +223,11 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
           )}
           
           {isCAD && attachment.blobUrl && (
-            <StepViewer blobUrl={attachment.blobUrl} fileName={attachment.fileName} />
+            <StepViewer 
+              blobUrl={attachment.blobUrl} 
+              fileName={attachment.fileName} 
+              file={attachment.file}
+            />
           )}
           
           {isImage && attachment.blobUrl && (
