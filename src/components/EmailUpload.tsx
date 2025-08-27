@@ -18,21 +18,32 @@ export function EmailUpload() {
     console.log('Email content length:', text.length);
     const attachments: Attachment[] = [];
     
-    // Basic email parsing for attachments - improved regex patterns
-    const attachmentRegex = /Content-Disposition:\s*attachment[^;]*;\s*filename[*]?=(?:"([^"]+)"|([^;\s]+))/gi;
-    // More comprehensive base64 regex that looks for the complete attachment block
-    const attachmentBlockRegex = /Content-Disposition:\s*attachment[^]*?filename[*]?=(?:"([^"]+)"|([^;\s]+))[^]*?Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n([A-Za-z0-9+/=\r\n\s]+?)(?=\r?\n--|\r?\nContent-|$)/gi;
+    const isMsg = file.name.toLowerCase().endsWith('.msg');
+    const isEml = file.name.toLowerCase().endsWith('.eml');
     
-    
-    // Use the improved regex to extract complete attachment blocks
-    let match;
-    while ((match = attachmentBlockRegex.exec(text)) !== null) {
-      const filename = match[1] || match[2];
-      const base64Content = match[3].replace(/[\r\n\s]/g, '');
+    if (isMsg) {
+      // MSG files have a different structure - try multiple patterns
+      console.log('Parsing MSG file format');
       
-      console.log('Found complete attachment:', filename, 'Base64 length:', base64Content.length);
+      // Pattern 1: Look for embedded filenames and base64 content
+      const msgAttachmentRegex = /([A-Za-z0-9+/=]{200,})/g;
+      const filenameRegex = /([^\\/:*?"<>|]+\.(pdf|png|jpe?g|step?|stp|iges?|igs|stl|obj|3ds|fbx|dxf))/gi;
       
-      if (filename && base64Content) {
+      // Extract potential filenames
+      const filenames = [...text.matchAll(filenameRegex)].map(match => match[1]);
+      console.log('Found potential filenames in MSG:', filenames);
+      
+      // Extract potential base64 blocks
+      const base64Blocks = [...text.matchAll(msgAttachmentRegex)].map(match => match[1]);
+      console.log('Found potential base64 blocks:', base64Blocks.length);
+      
+      // Try to match filenames with base64 content
+      for (let i = 0; i < Math.min(filenames.length, base64Blocks.length); i++) {
+        const filename = filenames[i];
+        const base64Content = base64Blocks[i].replace(/[\r\n\s]/g, '');
+        
+        console.log('Attempting to process MSG attachment:', filename, 'Base64 length:', base64Content.length);
+        
         try {
           // Add padding if needed
           const paddedBase64 = base64Content + '='.repeat((4 - base64Content.length % 4) % 4);
@@ -46,15 +57,10 @@ export function EmailUpload() {
           }
           const byteArray = new Uint8Array(byteNumbers);
           
-          // Check if it's a valid PDF (starts with %PDF)
-          const isPDF = filename.toLowerCase().endsWith('.pdf');
-          if (isPDF) {
-            const pdfHeader = String.fromCharCode.apply(null, Array.from(byteArray.slice(0, 4)));
-            console.log('PDF header check for', filename, ':', pdfHeader);
-            if (!pdfHeader.startsWith('%PDF')) {
-              console.warn('Invalid PDF header for:', filename, 'Header:', pdfHeader);
-              continue; // Skip this attachment if it's not a valid PDF
-            }
+          // Basic validation - check if decoded content makes sense
+          if (byteArray.length < 100) {
+            console.log('Skipping small decoded content for:', filename);
+            continue;
           }
           
           // Determine MIME type based on file extension
@@ -68,7 +74,7 @@ export function EmailUpload() {
           const blob = new Blob([byteArray], { type: mimeType });
           const blobUrl = URL.createObjectURL(blob);
           
-          console.log('Created blob for', filename, 'URL:', blobUrl, 'Size:', blob.size);
+          console.log('Created blob for MSG attachment:', filename, 'URL:', blobUrl, 'Size:', blob.size);
           
           const attachment: Attachment = {
             id: `att_${Date.now()}_${attachments.length}`,
@@ -79,9 +85,74 @@ export function EmailUpload() {
           };
           
           attachments.push(attachment);
-          console.log('Successfully processed attachment:', filename);
+          console.log('Successfully processed MSG attachment:', filename);
         } catch (error) {
-          console.error('Error processing attachment:', filename, error);
+          console.error('Error processing MSG attachment:', filename, error);
+        }
+      }
+    } else if (isEml) {
+      // Standard EML parsing
+      console.log('Parsing EML file format');
+      const attachmentBlockRegex = /Content-Disposition:\s*attachment[^]*?filename[*]?=(?:"([^"]+)"|([^;\s]+))[^]*?Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n([A-Za-z0-9+/=\r\n\s]+?)(?=\r?\n--|\r?\nContent-|$)/gi;
+      
+      let match;
+      while ((match = attachmentBlockRegex.exec(text)) !== null) {
+        const filename = match[1] || match[2];
+        const base64Content = match[3].replace(/[\r\n\s]/g, '');
+        
+        console.log('Found complete EML attachment:', filename, 'Base64 length:', base64Content.length);
+        
+        if (filename && base64Content) {
+          try {
+            // Add padding if needed
+            const paddedBase64 = base64Content + '='.repeat((4 - base64Content.length % 4) % 4);
+            
+            const byteCharacters = atob(paddedBase64);
+            console.log('Decoded byte length for', filename, ':', byteCharacters.length);
+            
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let j = 0; j < byteCharacters.length; j++) {
+              byteNumbers[j] = byteCharacters.charCodeAt(j);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            
+            // Check if it's a valid PDF (starts with %PDF)
+            const isPDF = filename.toLowerCase().endsWith('.pdf');
+            if (isPDF) {
+              const pdfHeader = String.fromCharCode.apply(null, Array.from(byteArray.slice(0, 4)));
+              console.log('PDF header check for', filename, ':', pdfHeader);
+              if (!pdfHeader.startsWith('%PDF')) {
+                console.warn('Invalid PDF header for:', filename, 'Header:', pdfHeader);
+                continue; // Skip this attachment if it's not a valid PDF
+              }
+            }
+            
+            // Determine MIME type based on file extension
+            let mimeType = 'application/octet-stream';
+            if (filename.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+            else if (filename.toLowerCase().match(/\.(jpg|jpeg)$/)) mimeType = 'image/jpeg';
+            else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+            else if (filename.toLowerCase().match(/\.(step|stp)$/)) mimeType = 'application/step';
+            else if (filename.toLowerCase().match(/\.(iges|igs)$/)) mimeType = 'application/iges';
+            
+            const blob = new Blob([byteArray], { type: mimeType });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            console.log('Created blob for EML attachment:', filename, 'URL:', blobUrl, 'Size:', blob.size);
+            
+            const attachment: Attachment = {
+              id: `att_${Date.now()}_${attachments.length}`,
+              fileName: filename,
+              mimeType: mimeType,
+              sizeBytes: byteArray.length,
+              blobUrl: blobUrl,
+            };
+            
+            attachments.push(attachment);
+            console.log('Successfully processed EML attachment:', filename);
+          } catch (error) {
+            console.error('Error processing EML attachment:', filename, error);
+          }
         }
       }
     }
