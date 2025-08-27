@@ -3,7 +3,7 @@ import { LineItemsTable } from '@/components/LineItemsTable';
 import { CustomerInfo } from '@/components/CustomerInfo';
 import { PdfGenerator } from '@/components/PdfGenerator';
 import { useQuoteStore } from '@/store/useQuoteStore';
-import { Settings, HelpCircle, ArrowLeft } from 'lucide-react';
+import { Settings, HelpCircle, ArrowLeft, FileText, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
@@ -57,6 +57,14 @@ const Index = () => {
               </div>
               
               <div className="flex items-center space-x-2">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Offertes
+                </Button>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Files
+                </Button>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Settings className="h-4 w-4 mr-2" />
                   Instellingen
