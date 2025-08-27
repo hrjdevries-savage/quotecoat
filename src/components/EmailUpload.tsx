@@ -331,10 +331,75 @@ export function EmailUpload() {
     e.preventDefault();
     setIsDragOver(false);
     
+    console.log('Drop event triggered');
+    console.log('DataTransfer items:', e.dataTransfer.items?.length);
+    console.log('DataTransfer files:', e.dataTransfer.files?.length);
+    console.log('DataTransfer types:', e.dataTransfer.types);
+    
+    // Check for files first
     const files = e.dataTransfer.files;
     if (files.length > 0) {
+      console.log('Processing dropped files:', Array.from(files).map(f => ({ name: f.name, type: f.type, size: f.size })));
       processFiles(files);
+      return;
     }
+    
+    // Check for data transfer items (for Outlook emails)
+    if (e.dataTransfer.items) {
+      const items = Array.from(e.dataTransfer.items);
+      console.log('DataTransfer items details:', items.map(item => ({ kind: item.kind, type: item.type })));
+      
+      // Look for file items
+      const fileItems = items.filter(item => item.kind === 'file');
+      if (fileItems.length > 0) {
+        const droppedFiles: File[] = [];
+        
+        fileItems.forEach(item => {
+          const file = item.getAsFile();
+          if (file) {
+            console.log('Found file from DataTransfer item:', file.name, file.type, file.size);
+            droppedFiles.push(file);
+          }
+        });
+        
+        if (droppedFiles.length > 0) {
+          const fileList = new DataTransfer();
+          droppedFiles.forEach(file => fileList.items.add(file));
+          processFiles(fileList.files);
+          return;
+        }
+      }
+      
+      // Check for text data that might contain email content
+      const textItems = items.filter(item => item.type.includes('text'));
+      if (textItems.length > 0) {
+        console.log('Found text items, checking for email content...');
+        textItems.forEach(async (item) => {
+          try {
+            const data = await new Promise<string>((resolve) => {
+              item.getAsString(resolve);
+            });
+            console.log('Text data preview:', data.substring(0, 200));
+            
+            // If it looks like email content, create a temporary .eml file
+            if (data.includes('Content-Type:') || data.includes('From:') || data.includes('Subject:')) {
+              console.log('Detected email content in text data, creating temporary .eml file');
+              const emlBlob = new Blob([data], { type: 'message/rfc822' });
+              const emlFile = new File([emlBlob], 'dropped-email.eml', { type: 'message/rfc822' });
+              
+              const fileList = new DataTransfer();
+              fileList.items.add(emlFile);
+              processFiles(fileList.files);
+            }
+          } catch (error) {
+            console.error('Error processing text item:', error);
+          }
+        });
+      }
+    }
+    
+    // Fallback for no recognized data
+    console.warn('No recognized file or email data in drop event');
   }, [processFiles]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
