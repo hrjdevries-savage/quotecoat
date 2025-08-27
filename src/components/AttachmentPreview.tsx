@@ -28,35 +28,55 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
       // Set up PDF.js worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       
-      pdfjsLib.getDocument(attachment.blobUrl).promise.then((pdf) => {
-        console.log('PDF loaded successfully, pages:', pdf.numPages);
-        return pdf.getPage(1);
-      }).then((page) => {
-        console.log('First page loaded');
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          console.error('Canvas ref not available');
-          return;
-        }
-        
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        
-        const renderContext = {
-          canvasContext: canvas.getContext('2d')!,
-          viewport: viewport
-        };
-        
-        page.render(renderContext).promise.then(() => {
-          console.log('PDF rendered successfully');
+      // First, let's validate the blob data before trying to load it
+      fetch(attachment.blobUrl)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => {
+          console.log('PDF blob size:', arrayBuffer.byteLength);
+          
+          // Check if it's actually a valid PDF
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const header = String.fromCharCode.apply(null, Array.from(uint8Array.slice(0, 5)));
+          console.log('PDF header:', header);
+          
+          if (!header.startsWith('%PDF')) {
+            throw new Error('Invalid PDF header: ' + header);
+          }
+          
+          // Load PDF using the array buffer instead of blob URL
+          return pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        })
+        .then((pdf) => {
+          console.log('PDF loaded successfully, pages:', pdf.numPages);
+          return pdf.getPage(1);
+        })
+        .then((page) => {
+          console.log('First page loaded');
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            console.error('Canvas ref not available');
+            return;
+          }
+          
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          const renderContext = {
+            canvasContext: canvas.getContext('2d')!,
+            viewport: viewport
+          };
+          
+          page.render(renderContext).promise.then(() => {
+            console.log('PDF rendered successfully');
+          });
+        })
+        .catch((error) => {
+          console.error('Error loading PDF:', error);
+          if (pdfContainerRef.current) {
+            pdfContainerRef.current.innerHTML = '<p class="text-destructive p-4">Error loading PDF preview: ' + error.message + '</p>';
+          }
         });
-      }).catch((error) => {
-        console.error('Error loading PDF:', error);
-        if (pdfContainerRef.current) {
-          pdfContainerRef.current.innerHTML = '<p class="text-destructive p-4">Error loading PDF preview: ' + error.message + '</p>';
-        }
-      });
     } else if (isCAD && attachment.blobUrl) {
       console.log('Loading STEP/CAD file:', attachment.fileName, attachment.mimeType, attachment.blobUrl);
       // The StepViewer component will handle the 3D rendering
