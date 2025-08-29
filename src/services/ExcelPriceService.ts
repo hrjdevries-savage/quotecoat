@@ -366,10 +366,21 @@ export class ExcelPriceService {
   }
 
   private static replaceExcelFunctions(formula: string): string {
-    // Handle IF function - convert to JavaScript ternary operator
-    formula = formula.replace(/IF\((.*?),(.*?),(.*?)\)/gi, (match, condition, trueValue, falseValue) => {
-      return `((${condition}) ? (${trueValue}) : (${falseValue}))`;
-    });
+    // Handle nested IF functions - process from innermost to outermost
+    let processedFormula = formula;
+    let hasIF = true;
+    
+    while (hasIF) {
+      const beforeReplace = processedFormula;
+      // Find the innermost IF function (no nested IF inside its arguments)
+      processedFormula = processedFormula.replace(/IF\(([^()]*(?:\([^()]*\)[^()]*)*),([^()]*(?:\([^()]*\)[^()]*)*),([^()]*(?:\([^()]*\)[^()]*)*)\)/i, 
+        (match, condition, trueValue, falseValue) => {
+          return `((${condition}) ? (${trueValue}) : (${falseValue}))`;
+        });
+      hasIF = beforeReplace !== processedFormula;
+    }
+    
+    formula = processedFormula;
 
     // Handle SUM function
     formula = formula.replace(/SUM\((.*?)\)/gi, (match, args) => {
