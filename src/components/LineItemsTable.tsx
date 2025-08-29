@@ -43,6 +43,30 @@ export function LineItemsTable() {
     updateLineItem(itemId, { price: numValue });
   };
 
+  const handleDimensionChange = async (itemId: string, field: 'lengte' | 'breedte' | 'hoogte' | 'gewichtKg', value: string) => {
+    const numericValue = value === '' ? null : parseFloat(value);
+    const updatedItem = { [field]: numericValue };
+    updateLineItem(itemId, updatedItem);
+
+    // Auto-calculate price if Excel is configured
+    const item = currentDraft.lineItems.find(item => item.id === itemId);
+    if (item) {
+      const { ExcelPriceService } = await import('@/services/ExcelPriceService');
+      if (ExcelPriceService.isConfigured()) {
+        const updatedLineItem = { ...item, ...updatedItem };
+        const calculatedPrice = await ExcelPriceService.calculatePrice(
+          updatedLineItem.lengte,
+          updatedLineItem.breedte, 
+          updatedLineItem.hoogte,
+          updatedLineItem.gewichtKg
+        );
+        if (calculatedPrice !== null) {
+          updateLineItem(itemId, { price: calculatedPrice });
+        }
+      }
+    }
+  };
+
   const formatPrice = (price: number | null) => {
     if (price === null) return '';
     return new Intl.NumberFormat('nl-NL', {
@@ -190,7 +214,7 @@ export function LineItemsTable() {
                         min="0"
                         step="0.1"
                         value={item.lengte || ''}
-                        onChange={(e) => updateLineItem(item.id, { lengte: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        onChange={(e) => handleDimensionChange(item.id, 'lengte', e.target.value)}
                         placeholder="0"
                         className="h-8 text-xs"
                       />
@@ -202,7 +226,7 @@ export function LineItemsTable() {
                         min="0"
                         step="0.1"
                         value={item.breedte || ''}
-                        onChange={(e) => updateLineItem(item.id, { breedte: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        onChange={(e) => handleDimensionChange(item.id, 'breedte', e.target.value)}
                         placeholder="0"
                         className="h-8 text-xs"
                       />
@@ -214,7 +238,7 @@ export function LineItemsTable() {
                         min="0"
                         step="0.1"
                         value={item.hoogte || ''}
-                        onChange={(e) => updateLineItem(item.id, { hoogte: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        onChange={(e) => handleDimensionChange(item.id, 'hoogte', e.target.value)}
                         placeholder="0"
                         className="h-8 text-xs"
                       />
@@ -226,7 +250,7 @@ export function LineItemsTable() {
                         min="0"
                         step="0.01"
                         value={item.gewichtKg || ''}
-                        onChange={(e) => updateLineItem(item.id, { gewichtKg: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        onChange={(e) => handleDimensionChange(item.id, 'gewichtKg', e.target.value)}
                         placeholder="0"
                         className="h-8 text-xs"
                       />

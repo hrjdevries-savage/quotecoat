@@ -51,6 +51,12 @@ const Index = () => {
                     Offertes
                   </Button>
                 </Link>
+                <Link to="/excel-settings">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Excel Prijzen
+                  </Button>
+                </Link>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Upload className="h-4 w-4 mr-2" />
                   Files
