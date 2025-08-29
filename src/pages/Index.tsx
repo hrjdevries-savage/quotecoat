@@ -21,10 +21,10 @@ const Index = () => {
     <div className="relative overflow-hidden pb-8">
           <div className="container relative mx-auto px-4 py-[18px]">
             <div className="max-w-4xl">
-              <h1 className="mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent py-[10px] px-[10px]">
+              <h1 className="mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent leading-tight">
                 Coating quotes made simple
               </h1>
-              <p className="text-xl text-muted-foreground mb-8 max-w-2xl leading-relaxed mt-8">
+              <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
                 Upload your specifications, get instant quotes, and streamline your manufacturing workflow with our AI-powered platform.
               </p>
             </div>

@@ -84,102 +84,61 @@ export class ExcelPriceService {
       return null;
     }
 
+    // Return null if any required inputs are null/empty
+    if (length === null || width === null || height === null || weight === null) {
+      return null;
+    }
+
     try {
       // Get the first worksheet
       const sheetName = this.config.workbook.SheetNames[0];
       const worksheet = this.config.workbook.Sheets[sheetName];
 
-      // Create a fresh copy of the worksheet for each calculation
-      const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
-      const worksheetCopy = XLSX.utils.aoa_to_sheet(sheetData);
-
-      // Copy all formulas and cell properties from original
+      // Create a deep copy of the worksheet for fresh calculation
+      const worksheetCopy = {};
+      
+      // Copy all cells with their properties
       Object.keys(worksheet).forEach(cellRef => {
-        if (cellRef.match(/^[A-Z]+[0-9]+$/)) {
-          worksheetCopy[cellRef] = { ...worksheet[cellRef] };
+        if (cellRef.match(/^[A-Z]+[0-9]+$/) || cellRef.startsWith('!')) {
+          worksheetCopy[cellRef] = JSON.parse(JSON.stringify(worksheet[cellRef]));
         }
       });
 
       // Set the input values in the specified cells
-      if (length !== null && this.config.lengthCell) {
-        worksheetCopy[this.config.lengthCell] = { t: 'n', v: length };
-      }
-      if (width !== null && this.config.widthCell) {
-        worksheetCopy[this.config.widthCell] = { t: 'n', v: width };
-      }
-      if (height !== null && this.config.heightCell) {
-        worksheetCopy[this.config.heightCell] = { t: 'n', v: height };
-      }
-      if (weight !== null && this.config.weightCell) {
-        worksheetCopy[this.config.weightCell] = { t: 'n', v: weight };
-      }
+      worksheetCopy[this.config.lengthCell] = { t: 'n', v: length, w: length.toString() };
+      worksheetCopy[this.config.widthCell] = { t: 'n', v: width, w: width.toString() };
+      worksheetCopy[this.config.heightCell] = { t: 'n', v: height, w: height.toString() };
+      worksheetCopy[this.config.weightCell] = { t: 'n', v: weight, w: weight.toString() };
 
-      console.log('Input values set:', {
+      console.log('Excel calculation inputs:', {
         length: `${this.config.lengthCell}: ${length}`,
         width: `${this.config.widthCell}: ${width}`,
         height: `${this.config.heightCell}: ${height}`,
         weight: `${this.config.weightCell}: ${weight}`
       });
 
-      // Get the price cell
-      const priceCell = worksheetCopy[this.config.priceCell];
-      console.log('Price cell content:', priceCell);
-      
-      // If the price cell contains a formula, evaluate it manually
-      if (priceCell?.f) {
-        console.log('Formula detected in price cell:', priceCell.f);
-        const calculatedPrice = this.evaluateFormula(priceCell.f, worksheetCopy);
-        if (calculatedPrice !== null) {
-          console.log('Formula evaluation result:', calculatedPrice);
-          return calculatedPrice;
-        }
-      }
-      
-      // Check if the original sheet has a formula in the price cell
+      // Check for formula in the price cell (original sheet)
       const originalPriceCell = worksheet[this.config.priceCell];
       if (originalPriceCell?.f) {
-        console.log('Original formula detected:', originalPriceCell.f);
+        console.log('Found formula in price cell:', originalPriceCell.f);
         const calculatedPrice = this.evaluateFormula(originalPriceCell.f, worksheetCopy);
         if (calculatedPrice !== null) {
-          console.log('Original formula evaluation result:', calculatedPrice);
-          return calculatedPrice;
+          console.log('Formula calculation result:', calculatedPrice);
+          return Math.round(calculatedPrice * 100) / 100;
         }
       }
 
-      // Since SheetJS can't execute formulas, we need a smarter fallback
-      // Look for common patterns in Excel formulas and create a reasonable calculation
-      console.log('No formula found or evaluation failed, using intelligent fallback');
-      
-      if (length && width && height && weight) {
-        // Convert mm to meters for volume calculation
-        const volumeM3 = (length / 1000) * (width / 1000) * (height / 1000);
-        
-        // More realistic pricing model based on typical manufacturing costs
-        const materialCostPerM3 = 5000; // €5000 per cubic meter
-        const weightCostPerKg = 3; // €3 per kg
-        const baseCost = 25; // Base processing cost €25
-        const complexityFactor = Math.min(Math.max(volumeM3 * 1000, 1), 3); // Complexity based on size
-        
-        const materialCost = volumeM3 * materialCostPerM3;
-        const weightCost = weight * weightCostPerKg;
-        const processingCost = baseCost * complexityFactor;
-        
-        const totalPrice = materialCost + weightCost + processingCost;
-        const roundedPrice = Math.round(totalPrice * 100) / 100;
-        
-        console.log('Intelligent fallback calculation:', {
-          volume: volumeM3,
-          materialCost,
-          weightCost,
-          processingCost,
-          totalPrice: roundedPrice
-        });
-        
-        return roundedPrice;
+      // If no formula found, check if there's a static value
+      const staticPrice = worksheetCopy[this.config.priceCell]?.v;
+      if (typeof staticPrice === 'number' && staticPrice > 0) {
+        console.log('Using static price from Excel:', staticPrice);
+        return Math.round(staticPrice * 100) / 100;
       }
 
-      console.warn('Could not calculate price - insufficient data');
+      // Fallback: return null instead of calculated fallback to indicate missing formula
+      console.warn('No Excel formula found in price cell - template may need formulas');
       return null;
+
     } catch (error) {
       console.error('Error calculating price from Excel:', error);
       return null;
@@ -192,41 +151,74 @@ export class ExcelPriceService {
       let cleanFormula = formula.startsWith('=') ? formula.slice(1) : formula;
       console.log('Evaluating formula:', cleanFormula);
       
-      // Replace cell references with their values
-      cleanFormula = cleanFormula.replace(/([A-Z]+)([0-9]+)/g, (match, col, row) => {
-        const cellRef = col + row;
+      // Replace cell references with their values (supports A1, AB12, etc.)
+      cleanFormula = cleanFormula.replace(/([A-Z]+)([0-9]+)/gi, (match, col, row) => {
+        const cellRef = col.toUpperCase() + row;
         const cell = worksheet[cellRef];
-        const value = cell?.v || 0;
+        const value = cell?.v !== undefined ? cell.v : 0;
         console.log(`Replacing ${cellRef} with ${value}`);
-        return value.toString();
+        return `(${value})`;
       });
 
       console.log('Formula after cell replacement:', cleanFormula);
 
-      // Handle common Excel functions
+      // Handle Excel functions
       cleanFormula = cleanFormula.replace(/SUM\((.*?)\)/gi, (match, args) => {
-        const values = args.split(',').map((v: string) => parseFloat(v.trim()) || 0);
-        return values.reduce((sum: number, val: number) => sum + val, 0).toString();
+        const values = args.split(',').map((v: string) => {
+          const num = parseFloat(v.replace(/[()]/g, '').trim());
+          return isNaN(num) ? 0 : num;
+        });
+        const result = values.reduce((sum: number, val: number) => sum + val, 0);
+        return `(${result})`;
       });
 
       cleanFormula = cleanFormula.replace(/MAX\((.*?)\)/gi, (match, args) => {
-        const values = args.split(',').map((v: string) => parseFloat(v.trim()) || 0);
-        return Math.max(...values).toString();
+        const values = args.split(',').map((v: string) => {
+          const num = parseFloat(v.replace(/[()]/g, '').trim());
+          return isNaN(num) ? 0 : num;
+        });
+        const result = Math.max(...values);
+        return `(${result})`;
       });
 
       cleanFormula = cleanFormula.replace(/MIN\((.*?)\)/gi, (match, args) => {
-        const values = args.split(',').map((v: string) => parseFloat(v.trim()) || 0);
-        return Math.min(...values).toString();
+        const values = args.split(',').map((v: string) => {
+          const num = parseFloat(v.replace(/[()]/g, '').trim());
+          return isNaN(num) ? 0 : num;
+        });
+        const result = Math.min(...values);
+        return `(${result})`;
+      });
+
+      cleanFormula = cleanFormula.replace(/ABS\((.*?)\)/gi, (match, args) => {
+        const value = parseFloat(args.replace(/[()]/g, '').trim());
+        const result = Math.abs(isNaN(value) ? 0 : value);
+        return `(${result})`;
+      });
+
+      cleanFormula = cleanFormula.replace(/ROUND\((.*?),\s*(\d+)\)/gi, (match, value, decimals) => {
+        const num = parseFloat(value.replace(/[()]/g, '').trim());
+        const dec = parseInt(decimals);
+        const result = Math.round((isNaN(num) ? 0 : num) * Math.pow(10, dec)) / Math.pow(10, dec);
+        return `(${result})`;
       });
 
       console.log('Formula after function replacement:', cleanFormula);
 
+      // Clean up the formula for safe evaluation
+      cleanFormula = cleanFormula.replace(/\s+/g, ' ').trim();
+      
+      // Validate that the formula only contains safe characters
+      if (!/^[0-9\+\-\*\/\.\(\)\s]+$/.test(cleanFormula)) {
+        console.warn('Formula contains unsafe characters, skipping evaluation');
+        return null;
+      }
+
       // Evaluate basic mathematical expressions
-      // WARNING: This is a simplified evaluation - only use with trusted formulas
       const result = Function('"use strict"; return (' + cleanFormula + ')')();
       
-      if (typeof result === 'number' && !isNaN(result)) {
-        return Math.round(result * 100) / 100;
+      if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+        return result;
       }
       
       return null;

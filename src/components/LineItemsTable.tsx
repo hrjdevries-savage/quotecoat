@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft } from 'lucide-react';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,24 +49,38 @@ export function LineItemsTable() {
     const updatedItem = { [field]: numericValue };
     updateLineItem(itemId, updatedItem);
 
-    // Auto-calculate price if Excel is configured
-    const item = currentDraft.lineItems.find(item => item.id === itemId);
-    if (item) {
-      const { ExcelPriceService } = await import('@/services/ExcelPriceService');
-      if (ExcelPriceService.isConfigured()) {
-        const updatedLineItem = { ...item, ...updatedItem };
+    // Debounced price calculation
+    debouncedCalculatePrice(itemId, updatedItem);
+  };
+
+  const debouncedCalculatePrice = useDebouncedCallback(async (itemId: string, updatedItem: any) => {
+    const item = currentDraft?.lineItems.find(item => item.id === itemId);
+    if (!item) return;
+
+    const { ExcelPriceService } = await import('@/services/ExcelPriceService');
+    if (ExcelPriceService.isConfigured()) {
+      const updatedLineItem = { ...item, ...updatedItem };
+      
+      // Only calculate if all required fields have values
+      if (updatedLineItem.lengte && updatedLineItem.breedte && 
+          updatedLineItem.hoogte && updatedLineItem.gewichtKg) {
+        
         const calculatedPrice = await ExcelPriceService.calculatePrice(
           updatedLineItem.lengte,
           updatedLineItem.breedte, 
           updatedLineItem.hoogte,
           updatedLineItem.gewichtKg
         );
+        
         if (calculatedPrice !== null) {
           updateLineItem(itemId, { price: calculatedPrice });
         }
+      } else {
+        // Clear price if dimensions are incomplete
+        updateLineItem(itemId, { price: null });
       }
     }
-  };
+  }, 250); // 250ms debounce delay
 
   const formatPrice = (price: number | null) => {
     if (price === null) return '';

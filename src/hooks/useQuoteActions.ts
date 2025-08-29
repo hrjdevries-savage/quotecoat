@@ -15,10 +15,17 @@ export const useQuoteActions = () => {
       let quoteId = existingQuoteId;
 
       if (!quoteId) {
+        // Get current user for owner_id
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+
         // Create new quote
         const { data: quoteData, error: quoteError } = await supabase
           .from('quotes')
           .insert({
+            owner_id: user.id,
             quote_number: quoteDraft.meta.quoteNumber,
             client_name: quoteDraft.meta.clientName,
             client_email: quoteDraft.meta.clientEmail,
