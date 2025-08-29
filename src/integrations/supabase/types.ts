@@ -100,6 +100,54 @@ export type Database = {
         }
         Relationships: []
       }
+      excel_pricing_config: {
+        Row: {
+          created_at: string
+          file_name: string
+          height_cell: string
+          id: string
+          length_cell: string
+          owner_id: string
+          price_cell: string
+          selected_sheet: string
+          storage_path: string
+          updated_at: string
+          weight_cell: string
+          width_cell: string
+          workbook_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          height_cell: string
+          id?: string
+          length_cell: string
+          owner_id: string
+          price_cell: string
+          selected_sheet: string
+          storage_path: string
+          updated_at?: string
+          weight_cell: string
+          width_cell: string
+          workbook_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          height_cell?: string
+          id?: string
+          length_cell?: string
+          owner_id?: string
+          price_cell?: string
+          selected_sheet?: string
+          storage_path?: string
+          updated_at?: string
+          weight_cell?: string
+          width_cell?: string
+          workbook_hash?: string | null
+        }
+        Relationships: []
+      }
       quote_attachments: {
         Row: {
           created_at: string

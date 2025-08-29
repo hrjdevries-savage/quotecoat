@@ -1,69 +1,155 @@
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
+import { nanoid } from 'nanoid';
 
 export interface ExcelConfig {
+  id?: string;
   fileName: string;
+  selectedSheet: string;
   lengthCell: string;
   widthCell: string;
   heightCell: string;
   weightCell: string;
   priceCell: string;
   workbook: XLSX.WorkBook | null;
+  workbookHash?: string;
+  storagePath?: string;
+}
+
+export interface ExcelDebugInfo {
+  sheetName: string;
+  inputCells: Record<string, any>;
+  outputCell: { ref: string; value: any };
+  templateHash: string;
+  errors: string[];
 }
 
 export class ExcelPriceService {
-  private static config: ExcelConfig | null = null;
+  private static cachedConfig: ExcelConfig | null = null;
+  private static cachedWorkbook: XLSX.WorkBook | null = null;
+  private static currentHash: string | null = null;
 
-  static setConfig(config: ExcelConfig) {
-    this.config = config;
-    // Persist config to localStorage
-    localStorage.setItem('excel-price-config', JSON.stringify({
-      fileName: config.fileName,
-      lengthCell: config.lengthCell,
-      widthCell: config.widthCell,
-      heightCell: config.heightCell,
-      weightCell: config.weightCell,
-      priceCell: config.priceCell
-    }));
-  }
+  static async loadConfig(): Promise<ExcelConfig | null> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
 
-  static getConfig(): ExcelConfig | null {
-    if (this.config && this.config.workbook) return this.config;
-    
-    const stored = localStorage.getItem('excel-price-config');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Return config without workbook - workbook needs to be loaded separately
-      return {
-        ...parsed,
-        workbook: this.config?.workbook || null
+      const { data, error } = await supabase
+        .from('excel_pricing_config')
+        .select('*')
+        .eq('owner_id', user.id)
+        .single();
+
+      if (error || !data) return null;
+
+      // Load workbook from storage
+      const workbook = await this.loadWorkbookFromStorage(data.storage_path);
+      
+      this.cachedConfig = {
+        id: data.id,
+        fileName: data.file_name,
+        selectedSheet: data.selected_sheet,
+        lengthCell: data.length_cell,
+        widthCell: data.width_cell,
+        heightCell: data.height_cell,
+        weightCell: data.weight_cell,
+        priceCell: data.price_cell,
+        workbook,
+        workbookHash: data.workbook_hash,
+        storagePath: data.storage_path
       };
+
+      return this.cachedConfig;
+    } catch (error) {
+      console.error('Error loading Excel config:', error);
+      return null;
     }
-    return null;
   }
 
-  static loadWorkbookFromFile(file: File): Promise<void> {
+  static async saveConfig(config: ExcelConfig, file?: File): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    let storagePath = config.storagePath;
+    let workbookHash = config.workbookHash;
+
+    // Upload file to storage if provided
+    if (file) {
+      storagePath = `${user.id}/${nanoid()}-${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('pricing-templates')
+        .upload(storagePath, file, {
+          upsert: true,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Generate hash for the file
+      workbookHash = await this.generateFileHash(file);
+    }
+
+    // Save or update config in database
+    const configData = {
+      owner_id: user.id,
+      storage_path: storagePath!,
+      file_name: config.fileName,
+      selected_sheet: config.selectedSheet,
+      length_cell: config.lengthCell,
+      width_cell: config.widthCell,
+      height_cell: config.heightCell,
+      weight_cell: config.weightCell,
+      price_cell: config.priceCell,
+      workbook_hash: workbookHash
+    };
+
+    if (config.id) {
+      const { error } = await supabase
+        .from('excel_pricing_config')
+        .update(configData)
+        .eq('id', config.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('excel_pricing_config')
+        .insert([configData]);
+      if (error) throw error;
+    }
+
+    // Update cache
+    this.cachedConfig = { ...config, storagePath, workbookHash };
+    this.currentHash = workbookHash;
+  }
+
+  static async loadWorkbookFromStorage(storagePath: string): Promise<XLSX.WorkBook | null> {
+    try {
+      const { data, error } = await supabase.storage
+        .from('pricing-templates')
+        .download(storagePath);
+
+      if (error || !data) return null;
+
+      const arrayBuffer = await data.arrayBuffer();
+      const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      
+      this.cachedWorkbook = workbook;
+      return workbook;
+    } catch (error) {
+      console.error('Error loading workbook from storage:', error);
+      return null;
+    }
+  }
+
+  static async loadWorkbookFromFile(file: File): Promise<{ workbook: XLSX.WorkBook; sheets: string[] }> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
-          
-          if (this.config) {
-            this.config.workbook = workbook;
-          } else {
-            // If no config exists, create a basic one
-            this.config = {
-              fileName: file.name,
-              lengthCell: 'A1',
-              widthCell: 'A2', 
-              heightCell: 'A3',
-              weightCell: 'A4',
-              priceCell: 'A5',
-              workbook: workbook
-            };
-          }
-          resolve();
+          const sheets = workbook.SheetNames;
+          resolve({ workbook, sheets });
         } catch (error) {
           reject(error);
         }
@@ -78,70 +164,90 @@ export class ExcelPriceService {
     width: number | null, 
     height: number | null,
     weight: number | null
-  ): Promise<number | null> {
-    if (!this.config?.workbook) {
-      console.warn('Excel configuration not loaded');
-      return null;
-    }
-
-    // Return null if any required inputs are null/empty
-    if (length === null || width === null || height === null || weight === null) {
-      return null;
-    }
+  ): Promise<{ price: number | null; debugInfo: ExcelDebugInfo }> {
+    const debugInfo: ExcelDebugInfo = {
+      sheetName: '',
+      inputCells: {},
+      outputCell: { ref: '', value: null },
+      templateHash: '',
+      errors: []
+    };
 
     try {
-      // Get the first worksheet
-      const sheetName = this.config.workbook.SheetNames[0];
-      const worksheet = this.config.workbook.Sheets[sheetName];
+      // Load config if not cached
+      if (!this.cachedConfig) {
+        await this.loadConfig();
+      }
 
-      // Create a deep copy of the worksheet for fresh calculation
-      const worksheetCopy = {};
+      if (!this.cachedConfig?.workbook) {
+        debugInfo.errors.push('Excel configuration not loaded');
+        return { price: null, debugInfo };
+      }
+
+      // Return null if any required inputs are null/empty
+      if (length === null || width === null || height === null || weight === null) {
+        debugInfo.errors.push('Missing required input values');
+        return { price: null, debugInfo };
+      }
+
+      debugInfo.sheetName = this.cachedConfig.selectedSheet;
+      debugInfo.templateHash = this.cachedConfig.workbookHash || '';
+
+      // Check if selected sheet exists
+      if (!this.cachedConfig.workbook.SheetNames.includes(this.cachedConfig.selectedSheet)) {
+        debugInfo.errors.push(`Selected sheet '${this.cachedConfig.selectedSheet}' not found`);
+        return { price: null, debugInfo };
+      }
+
+      const worksheet = this.cachedConfig.workbook.Sheets[this.cachedConfig.selectedSheet];
       
-      // Copy all cells with their properties
-      Object.keys(worksheet).forEach(cellRef => {
-        if (cellRef.match(/^[A-Z]+[0-9]+$/) || cellRef.startsWith('!')) {
-          worksheetCopy[cellRef] = JSON.parse(JSON.stringify(worksheet[cellRef]));
-        }
-      });
+      // Create a deep copy of the worksheet for fresh calculation
+      const worksheetCopy = JSON.parse(JSON.stringify(worksheet));
 
       // Set the input values in the specified cells
-      worksheetCopy[this.config.lengthCell] = { t: 'n', v: length, w: length.toString() };
-      worksheetCopy[this.config.widthCell] = { t: 'n', v: width, w: width.toString() };
-      worksheetCopy[this.config.heightCell] = { t: 'n', v: height, w: height.toString() };
-      worksheetCopy[this.config.weightCell] = { t: 'n', v: weight, w: weight.toString() };
+      const inputs = {
+        [this.cachedConfig.lengthCell]: length,
+        [this.cachedConfig.widthCell]: width,
+        [this.cachedConfig.heightCell]: height,
+        [this.cachedConfig.weightCell]: weight
+      };
 
-      console.log('Excel calculation inputs:', {
-        length: `${this.config.lengthCell}: ${length}`,
-        width: `${this.config.widthCell}: ${width}`,
-        height: `${this.config.heightCell}: ${height}`,
-        weight: `${this.config.weightCell}: ${weight}`
-      });
+      for (const [cellRef, value] of Object.entries(inputs)) {
+        worksheetCopy[cellRef] = { t: 'n', v: value, w: value.toString() };
+        debugInfo.inputCells[cellRef] = value;
+      }
 
-      // Check for formula in the price cell (original sheet)
-      const originalPriceCell = worksheet[this.config.priceCell];
+      // Check for formula in the price cell
+      const originalPriceCell = worksheet[this.cachedConfig.priceCell];
+      debugInfo.outputCell.ref = this.cachedConfig.priceCell;
+
       if (originalPriceCell?.f) {
         console.log('Found formula in price cell:', originalPriceCell.f);
         const calculatedPrice = this.evaluateFormula(originalPriceCell.f, worksheetCopy);
         if (calculatedPrice !== null) {
-          console.log('Formula calculation result:', calculatedPrice);
-          return Math.round(calculatedPrice * 100) / 100;
+          const roundedPrice = Math.round(calculatedPrice * 100) / 100;
+          debugInfo.outputCell.value = roundedPrice;
+          return { price: roundedPrice >= 0 ? roundedPrice : null, debugInfo };
+        } else {
+          debugInfo.errors.push('Formula evaluation failed');
         }
       }
 
       // If no formula found, check if there's a static value
-      const staticPrice = worksheetCopy[this.config.priceCell]?.v;
-      if (typeof staticPrice === 'number' && staticPrice > 0) {
-        console.log('Using static price from Excel:', staticPrice);
-        return Math.round(staticPrice * 100) / 100;
+      const staticPrice = worksheetCopy[this.cachedConfig.priceCell]?.v;
+      if (typeof staticPrice === 'number' && staticPrice >= 0) {
+        const roundedPrice = Math.round(staticPrice * 100) / 100;
+        debugInfo.outputCell.value = roundedPrice;
+        return { price: roundedPrice, debugInfo };
       }
 
-      // Fallback: return null instead of calculated fallback to indicate missing formula
-      console.warn('No Excel formula found in price cell - template may need formulas');
-      return null;
+      debugInfo.errors.push('No valid formula or static value found in price cell');
+      return { price: null, debugInfo };
 
     } catch (error) {
       console.error('Error calculating price from Excel:', error);
-      return null;
+      debugInfo.errors.push(`Calculation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return { price: null, debugInfo };
     }
   }
 
@@ -163,45 +269,7 @@ export class ExcelPriceService {
       console.log('Formula after cell replacement:', cleanFormula);
 
       // Handle Excel functions
-      cleanFormula = cleanFormula.replace(/SUM\((.*?)\)/gi, (match, args) => {
-        const values = args.split(',').map((v: string) => {
-          const num = parseFloat(v.replace(/[()]/g, '').trim());
-          return isNaN(num) ? 0 : num;
-        });
-        const result = values.reduce((sum: number, val: number) => sum + val, 0);
-        return `(${result})`;
-      });
-
-      cleanFormula = cleanFormula.replace(/MAX\((.*?)\)/gi, (match, args) => {
-        const values = args.split(',').map((v: string) => {
-          const num = parseFloat(v.replace(/[()]/g, '').trim());
-          return isNaN(num) ? 0 : num;
-        });
-        const result = Math.max(...values);
-        return `(${result})`;
-      });
-
-      cleanFormula = cleanFormula.replace(/MIN\((.*?)\)/gi, (match, args) => {
-        const values = args.split(',').map((v: string) => {
-          const num = parseFloat(v.replace(/[()]/g, '').trim());
-          return isNaN(num) ? 0 : num;
-        });
-        const result = Math.min(...values);
-        return `(${result})`;
-      });
-
-      cleanFormula = cleanFormula.replace(/ABS\((.*?)\)/gi, (match, args) => {
-        const value = parseFloat(args.replace(/[()]/g, '').trim());
-        const result = Math.abs(isNaN(value) ? 0 : value);
-        return `(${result})`;
-      });
-
-      cleanFormula = cleanFormula.replace(/ROUND\((.*?),\s*(\d+)\)/gi, (match, value, decimals) => {
-        const num = parseFloat(value.replace(/[()]/g, '').trim());
-        const dec = parseInt(decimals);
-        const result = Math.round((isNaN(num) ? 0 : num) * Math.pow(10, dec)) / Math.pow(10, dec);
-        return `(${result})`;
-      });
+      cleanFormula = this.replaceExcelFunctions(cleanFormula);
 
       console.log('Formula after function replacement:', cleanFormula);
 
@@ -228,12 +296,100 @@ export class ExcelPriceService {
     }
   }
 
-  static isConfigured(): boolean {
-    return this.config?.workbook !== null || localStorage.getItem('excel-price-config') !== null;
+  private static replaceExcelFunctions(formula: string): string {
+    // Handle SUM function
+    formula = formula.replace(/SUM\((.*?)\)/gi, (match, args) => {
+      const values = args.split(',').map((v: string) => {
+        const num = parseFloat(v.replace(/[()]/g, '').trim());
+        return isNaN(num) ? 0 : num;
+      });
+      const result = values.reduce((sum: number, val: number) => sum + val, 0);
+      return `(${result})`;
+    });
+
+    // Handle MAX function
+    formula = formula.replace(/MAX\((.*?)\)/gi, (match, args) => {
+      const values = args.split(',').map((v: string) => {
+        const num = parseFloat(v.replace(/[()]/g, '').trim());
+        return isNaN(num) ? 0 : num;
+      });
+      const result = Math.max(...values);
+      return `(${result})`;
+    });
+
+    // Handle MIN function
+    formula = formula.replace(/MIN\((.*?)\)/gi, (match, args) => {
+      const values = args.split(',').map((v: string) => {
+        const num = parseFloat(v.replace(/[()]/g, '').trim());
+        return isNaN(num) ? 0 : num;
+      });
+      const result = Math.min(...values);
+      return `(${result})`;
+    });
+
+    // Handle ABS function
+    formula = formula.replace(/ABS\((.*?)\)/gi, (match, args) => {
+      const value = parseFloat(args.replace(/[()]/g, '').trim());
+      const result = Math.abs(isNaN(value) ? 0 : value);
+      return `(${result})`;
+    });
+
+    // Handle ROUND function
+    formula = formula.replace(/ROUND\((.*?),\s*(\d+)\)/gi, (match, value, decimals) => {
+      const num = parseFloat(value.replace(/[()]/g, '').trim());
+      const dec = parseInt(decimals);
+      const result = Math.round((isNaN(num) ? 0 : num) * Math.pow(10, dec)) / Math.pow(10, dec);
+      return `(${result})`;
+    });
+
+    return formula;
   }
 
-  static clearConfig() {
-    this.config = null;
-    localStorage.removeItem('excel-price-config');
+  private static async generateFileHash(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  static async isConfigured(): Promise<boolean> {
+    if (this.cachedConfig) return true;
+    const config = await this.loadConfig();
+    return config !== null;
+  }
+
+  static async clearConfig(): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete from database
+      await supabase
+        .from('excel_pricing_config')
+        .delete()
+        .eq('owner_id', user.id);
+
+      // Delete from storage (if exists)
+      if (this.cachedConfig?.storagePath) {
+        await supabase.storage
+          .from('pricing-templates')
+          .remove([this.cachedConfig.storagePath]);
+      }
+
+      // Clear cache
+      this.cachedConfig = null;
+      this.cachedWorkbook = null;
+      this.currentHash = null;
+    } catch (error) {
+      console.error('Error clearing config:', error);
+    }
+  }
+
+  static getAvailableSheets(): string[] {
+    return this.cachedConfig?.workbook?.SheetNames || [];
+  }
+
+  static getCachedConfig(): ExcelConfig | null {
+    return this.cachedConfig;
   }
 }

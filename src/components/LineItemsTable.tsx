@@ -58,22 +58,22 @@ export function LineItemsTable() {
     if (!item) return;
 
     const { ExcelPriceService } = await import('@/services/ExcelPriceService');
-    if (ExcelPriceService.isConfigured()) {
+    if (await ExcelPriceService.isConfigured()) {
       const updatedLineItem = { ...item, ...updatedItem };
       
       // Only calculate if all required fields have values
       if (updatedLineItem.lengte && updatedLineItem.breedte && 
           updatedLineItem.hoogte && updatedLineItem.gewichtKg) {
         
-        const calculatedPrice = await ExcelPriceService.calculatePrice(
+        const result = await ExcelPriceService.calculatePrice(
           updatedLineItem.lengte,
           updatedLineItem.breedte, 
           updatedLineItem.hoogte,
           updatedLineItem.gewichtKg
         );
         
-        if (calculatedPrice !== null) {
-          updateLineItem(itemId, { price: calculatedPrice });
+        if (result.price !== null) {
+          updateLineItem(itemId, { price: result.price });
         }
       } else {
         // Clear price if dimensions are incomplete
