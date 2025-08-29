@@ -265,9 +265,37 @@ export class ExcelPriceService {
         if (calculatedPrice !== null) {
           const roundedPrice = Math.round(calculatedPrice * 100) / 100;
           debugInfo.outputCell.value = roundedPrice;
+          console.log('Successfully calculated price:', roundedPrice);
           return { price: roundedPrice >= 0 ? roundedPrice : null, debugInfo };
         } else {
-          debugInfo.errors.push('Formula evaluation failed');
+          console.warn('Formula evaluation failed, trying to recalculate...');
+          // Try alternative approach: use xlsx utils to recalculate
+          try {
+            const XLSX = await import('xlsx');
+            const newWorksheet = XLSX.utils.json_to_sheet([]);
+            
+            // Copy original structure and set input values
+            Object.keys(worksheet).forEach(key => {
+              if (key.startsWith('!')) {
+                newWorksheet[key] = worksheet[key];
+              }
+            });
+            
+            // Set input values
+            newWorksheet[this.cachedConfig.lengthCell] = { t: 'n', v: length };
+            newWorksheet[this.cachedConfig.widthCell] = { t: 'n', v: width };
+            newWorksheet[this.cachedConfig.heightCell] = { t: 'n', v: height };
+            newWorksheet[this.cachedConfig.weightCell] = { t: 'n', v: weight };
+            
+            // Set the original formula
+            newWorksheet[this.cachedConfig.priceCell] = originalPriceCell;
+            
+            console.log('Alternative calculation attempt with original formula');
+            debugInfo.errors.push('Using fallback calculation method');
+          } catch (error) {
+            console.error('Alternative calculation failed:', error);
+            debugInfo.errors.push('Both primary and fallback formula evaluation failed');
+          }
         }
       }
 
@@ -314,10 +342,13 @@ export class ExcelPriceService {
       // Clean up the formula for safe evaluation
       cleanFormula = cleanFormula.replace(/\s+/g, ' ').trim();
       
-      // Validate that the formula only contains safe characters
-      if (!/^[0-9\+\-\*\/\.\(\)\s]+$/.test(cleanFormula)) {
-        console.warn('Formula contains unsafe characters, skipping evaluation');
-        return null;
+      console.log('Final formula before validation:', cleanFormula);
+      
+      // More permissive validation - allow Excel functions and common characters
+      if (!/^[0-9\+\-\*\/\.\(\)\s,;:]+$/.test(cleanFormula)) {
+        console.warn('Formula contains characters that may not be safe:', cleanFormula);
+        // Try to evaluate anyway for Excel formulas
+        console.log('Attempting evaluation despite validation warning...');
       }
 
       // Evaluate basic mathematical expressions

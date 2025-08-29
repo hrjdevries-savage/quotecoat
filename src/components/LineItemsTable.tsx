@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { Card } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { useQuoteStore } from '@/store/useQuoteStore';
 import { LineItem } from '@/types';
 import { formatFileSize } from '@/utils/helpers';
 import { AttachmentPreview } from './AttachmentPreview';
+import { ExcelDebugPanel } from './ExcelDebugPanel';
 
 export function LineItemsTable() {
   const { 
@@ -53,6 +54,8 @@ export function LineItemsTable() {
     debouncedCalculatePrice(itemId, updatedItem);
   };
 
+  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
+
   const debouncedCalculatePrice = useDebouncedCallback(async (itemId: string, updatedItem: any) => {
     const item = currentDraft?.lineItems.find(item => item.id === itemId);
     if (!item) return;
@@ -72,12 +75,16 @@ export function LineItemsTable() {
           updatedLineItem.gewichtKg
         );
         
+        // Store debug info for this item
+        setDebugInfo(prev => ({ ...prev, [itemId]: result.debugInfo }));
+        
         if (result.price !== null) {
           updateLineItem(itemId, { price: result.price });
         }
       } else {
         // Clear price if dimensions are incomplete
         updateLineItem(itemId, { price: null });
+        setDebugInfo(prev => ({ ...prev, [itemId]: null }));
       }
     }
   }, 250); // 250ms debounce delay
@@ -156,144 +163,158 @@ export function LineItemsTable() {
                 const preview = getFilePreview(item);
                 
                 return (
-                  <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors">
-                    <td className="p-2">
-                      {preview ? (
+                  <React.Fragment key={item.id}>
+                    <tr className="border-b hover:bg-muted/20 transition-colors">
+                      <td className="p-2">
+                        {preview ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowPreviewId(item.id)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        ) : (
+                          <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
+                            <span className="text-xs text-muted-foreground">-</span>
+                          </div>
+                        )}
+                      </td>
+                      
+                      <td className="p-2">
+                        {item.fileName ? (
+                          <div className="space-y-1">
+                            <div className="font-medium text-xs truncate max-w-[120px]">
+                              {item.fileName}
+                            </div>
+                            {preview && (
+                              <div className="flex gap-1 flex-wrap">
+                                {preview.isPDF && (
+                                  <Badge variant="secondary" className="text-xs h-4 px-1">PDF</Badge>
+                                )}
+                                {preview.isCAD && (
+                                  <Badge variant="secondary" className="text-xs h-4 px-1">CAD</Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Handmatig</span>
+                        )}
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateLineItem(item.id, { description: e.target.value })}
+                          placeholder="Omschrijving..."
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          value={item.drawingNumber}
+                          onChange={(e) => updateLineItem(item.id, { drawingNumber: e.target.value })}
+                          placeholder="Tekening..."
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          value={item.behandeling}
+                          onChange={(e) => updateLineItem(item.id, { behandeling: e.target.value })}
+                          placeholder="Behandeling..."
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={item.lengte || ''}
+                          onChange={(e) => handleDimensionChange(item.id, 'lengte', e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={item.breedte || ''}
+                          onChange={(e) => handleDimensionChange(item.id, 'breedte', e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={item.hoogte || ''}
+                          onChange={(e) => handleDimensionChange(item.id, 'hoogte', e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.gewichtKg || ''}
+                          onChange={(e) => handleDimensionChange(item.id, 'gewichtKg', e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.price || ''}
+                          onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                          placeholder="0.00"
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      
+                      <td className="p-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setShowPreviewId(item.id)}
-                          className="h-6 w-6 p-0"
+                          onClick={() => removeLineItem(item.id)}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                         >
-                          <Eye className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
-                      ) : (
-                        <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
-                          <span className="text-xs text-muted-foreground">-</span>
-                        </div>
-                      )}
-                    </td>
+                      </td>
+                    </tr>
                     
-                    <td className="p-2">
-                      {item.fileName ? (
-                        <div className="space-y-1">
-                          <div className="font-medium text-xs truncate max-w-[120px]">
-                            {item.fileName}
-                          </div>
-                          {preview && (
-                            <div className="flex gap-1 flex-wrap">
-                              {preview.isPDF && (
-                                <Badge variant="secondary" className="text-xs h-4 px-1">PDF</Badge>
-                              )}
-                              {preview.isCAD && (
-                                <Badge variant="secondary" className="text-xs h-4 px-1">CAD</Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Handmatig</span>
-                      )}
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        value={item.description}
-                        onChange={(e) => updateLineItem(item.id, { description: e.target.value })}
-                        placeholder="Omschrijving..."
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        value={item.drawingNumber}
-                        onChange={(e) => updateLineItem(item.id, { drawingNumber: e.target.value })}
-                        placeholder="Tekening..."
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        value={item.behandeling}
-                        onChange={(e) => updateLineItem(item.id, { behandeling: e.target.value })}
-                        placeholder="Behandeling..."
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={item.lengte || ''}
-                        onChange={(e) => handleDimensionChange(item.id, 'lengte', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={item.breedte || ''}
-                        onChange={(e) => handleDimensionChange(item.id, 'breedte', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={item.hoogte || ''}
-                        onChange={(e) => handleDimensionChange(item.id, 'hoogte', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.gewichtKg || ''}
-                        onChange={(e) => handleDimensionChange(item.id, 'gewichtKg', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.price || ''}
-                        onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                        placeholder="0.00"
-                        className="h-8 text-xs"
-                      />
-                    </td>
-                    
-                    <td className="p-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeLineItem(item.id)}
-                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </td>
-                  </tr>
+                    {/* Debug Panel Row */}
+                    {debugInfo[item.id] && (
+                      <tr>
+                        <td colSpan={11} className="p-2">
+                          <ExcelDebugPanel 
+                            debugInfo={debugInfo[item.id]} 
+                            lineItemId={item.id}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
