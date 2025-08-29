@@ -81,18 +81,21 @@ export type Database = {
           bcc_enabled: boolean | null
           created_at: string | null
           inbound_alias: string
+          inbound_token: string
           owner_id: string
         }
         Insert: {
           bcc_enabled?: boolean | null
           created_at?: string | null
           inbound_alias: string
+          inbound_token: string
           owner_id: string
         }
         Update: {
           bcc_enabled?: boolean | null
           created_at?: string | null
           inbound_alias?: string
+          inbound_token?: string
           owner_id?: string
         }
         Relationships: []
