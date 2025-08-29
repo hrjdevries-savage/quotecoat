@@ -366,6 +366,11 @@ export class ExcelPriceService {
   }
 
   private static replaceExcelFunctions(formula: string): string {
+    // Handle IF function - convert to JavaScript ternary operator
+    formula = formula.replace(/IF\((.*?),(.*?),(.*?)\)/gi, (match, condition, trueValue, falseValue) => {
+      return `((${condition}) ? (${trueValue}) : (${falseValue}))`;
+    });
+
     // Handle SUM function
     formula = formula.replace(/SUM\((.*?)\)/gi, (match, args) => {
       const values = args.split(',').map((v: string) => {
