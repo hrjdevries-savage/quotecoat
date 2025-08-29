@@ -27,17 +27,50 @@ export class ExcelPriceService {
   }
 
   static getConfig(): ExcelConfig | null {
-    if (this.config) return this.config;
+    if (this.config && this.config.workbook) return this.config;
     
     const stored = localStorage.getItem('excel-price-config');
     if (stored) {
       const parsed = JSON.parse(stored);
+      // Return config without workbook - workbook needs to be loaded separately
       return {
         ...parsed,
-        workbook: null // Workbook needs to be reloaded
+        workbook: this.config?.workbook || null
       };
     }
     return null;
+  }
+
+  static loadWorkbookFromFile(file: File): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          if (this.config) {
+            this.config.workbook = workbook;
+          } else {
+            // If no config exists, create a basic one
+            this.config = {
+              fileName: file.name,
+              lengthCell: 'A1',
+              widthCell: 'A2', 
+              heightCell: 'A3',
+              weightCell: 'A4',
+              priceCell: 'A5',
+              workbook: workbook
+            };
+          }
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
   }
 
   static async calculatePrice(
