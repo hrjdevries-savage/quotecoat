@@ -367,18 +367,27 @@ export class ExcelPriceService {
   }
 
   private static replaceExcelFunctions(formula: string): string {
-    // Handle nested IF functions - process from innermost to outermost
+    // Handle nested IF functions by processing from outermost to innermost
     let processedFormula = formula;
-    let hasIF = true;
     
-    while (hasIF) {
-      const beforeReplace = processedFormula;
-      // Find the innermost IF function (no nested IF inside its arguments)
-      processedFormula = processedFormula.replace(/IF\(([^()]*(?:\([^()]*\)[^()]*)*),([^()]*(?:\([^()]*\)[^()]*)*),([^()]*(?:\([^()]*\)[^()]*)*)\)/i, 
-        (match, condition, trueValue, falseValue) => {
-          return `((${condition}) ? (${trueValue}) : (${falseValue}))`;
-        });
-      hasIF = beforeReplace !== processedFormula;
+    // Simple recursive approach to handle nested IF functions
+    const replaceIF = (str: string): string => {
+      // Find IF functions and replace them with ternary operators
+      return str.replace(/IF\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/gi, (match, condition, trueValue, falseValue) => {
+        // Recursively process the true and false values in case they contain IF functions
+        const processedTrue = replaceIF(trueValue.trim());
+        const processedFalse = replaceIF(falseValue.trim());
+        return `((${condition.trim()}) ? (${processedTrue}) : (${processedFalse}))`;
+      });
+    };
+    
+    // Keep applying until no more IF functions are found
+    let iterations = 0;
+    while (processedFormula.includes('IF(') && iterations < 10) {
+      const before = processedFormula;
+      processedFormula = replaceIF(processedFormula);
+      if (before === processedFormula) break;
+      iterations++;
     }
     
     formula = processedFormula;
