@@ -67,14 +67,27 @@ export class ExcelPriceService {
   }
 
   static async saveConfig(config: ExcelConfig, file?: File): Promise<void> {
+    console.log('Starting saveConfig with:', { 
+      fileName: config.fileName, 
+      selectedSheet: config.selectedSheet,
+      hasFile: !!file,
+      hasWorkbook: !!config.workbook 
+    });
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    console.log('User auth status:', { userId: user?.id, hasUser: !!user });
+    
+    if (!user) {
+      console.error('User not authenticated');
+      throw new Error('User not authenticated');
+    }
 
     let storagePath = config.storagePath;
     let workbookHash = config.workbookHash;
 
     // Upload file to storage if provided
     if (file) {
+      console.log('Uploading file to storage:', file.name);
       storagePath = `${user.id}/${nanoid()}-${file.name}`;
       
       const { error: uploadError } = await supabase.storage
@@ -84,10 +97,15 @@ export class ExcelPriceService {
           contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+      console.log('File uploaded successfully to:', storagePath);
 
       // Generate hash for the file
       workbookHash = await this.generateFileHash(file);
+      console.log('Generated file hash:', workbookHash);
     }
 
     // Save or update config in database
@@ -104,22 +122,42 @@ export class ExcelPriceService {
       workbook_hash: workbookHash
     };
 
+    console.log('Saving config data:', configData);
+
     if (config.id) {
+      console.log('Updating existing config with ID:', config.id);
       const { error } = await supabase
         .from('excel_pricing_config')
         .update(configData)
         .eq('id', config.id);
-      if (error) throw error;
+      if (error) {
+        console.error('Database update error:', error);
+        throw error;
+      }
     } else {
-      const { error } = await supabase
+      console.log('Creating new config');
+      const { data, error } = await supabase
         .from('excel_pricing_config')
-        .insert([configData]);
-      if (error) throw error;
+        .insert([configData])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
+      
+      console.log('Config created successfully:', data);
+      
+      // Update the config with the new ID
+      config.id = data.id;
     }
 
     // Update cache
     this.cachedConfig = { ...config, storagePath, workbookHash };
     this.currentHash = workbookHash;
+    
+    console.log('Config saved successfully');
   }
 
   static async loadWorkbookFromStorage(storagePath: string): Promise<XLSX.WorkBook | null> {
