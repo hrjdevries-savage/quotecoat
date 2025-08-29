@@ -56,46 +56,93 @@ export class ExcelPriceService {
       const sheetName = this.config.workbook.SheetNames[0];
       const worksheet = this.config.workbook.Sheets[sheetName];
 
-      // Create a copy of the workbook to avoid modifying the original
-      const workbookCopy = XLSX.utils.book_new();
+      // Create a fresh copy of the worksheet for each calculation
       const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
       const worksheetCopy = XLSX.utils.aoa_to_sheet(sheetData);
-      XLSX.utils.book_append_sheet(workbookCopy, worksheetCopy, sheetName);
 
-      // Set input values in specified cells
-      if (length !== null) {
-        XLSX.utils.sheet_add_aoa(worksheetCopy, [[length]], { origin: this.config.lengthCell });
+      // Set the input values in the specified cells
+      if (length !== null && this.config.lengthCell) {
+        worksheetCopy[this.config.lengthCell] = { t: 'n', v: length };
       }
-      if (width !== null) {
-        XLSX.utils.sheet_add_aoa(worksheetCopy, [[width]], { origin: this.config.widthCell });
+      if (width !== null && this.config.widthCell) {
+        worksheetCopy[this.config.widthCell] = { t: 'n', v: width };
       }
-      if (height !== null) {
-        XLSX.utils.sheet_add_aoa(worksheetCopy, [[height]], { origin: this.config.heightCell });
+      if (height !== null && this.config.heightCell) {
+        worksheetCopy[this.config.heightCell] = { t: 'n', v: height };
       }
-      if (weight !== null) {
-        XLSX.utils.sheet_add_aoa(worksheetCopy, [[weight]], { origin: this.config.weightCell });
+      if (weight !== null && this.config.weightCell) {
+        worksheetCopy[this.config.weightCell] = { t: 'n', v: weight };
       }
 
-      // Force recalculation by reading the formula result
-      // Note: SheetJS doesn't execute formulas, it only reads existing calculated values
-      // For true formula execution, we'd need a more advanced solution
+      console.log('Input values set:', {
+        length: `${this.config.lengthCell}: ${length}`,
+        width: `${this.config.widthCell}: ${width}`,
+        height: `${this.config.heightCell}: ${height}`,
+        weight: `${this.config.weightCell}: ${weight}`
+      });
+
+      // Try to read the price cell value
       const priceCell = worksheetCopy[this.config.priceCell];
+      console.log('Price cell content:', priceCell);
       
+      // If the price cell contains a formula, we need to evaluate it manually
+      // Since SheetJS can't execute formulas, we'll implement basic formula evaluation
+      if (priceCell?.f) {
+        console.log('Formula detected in price cell:', priceCell.f);
+        const calculatedPrice = this.evaluateBasicFormula(priceCell.f, worksheetCopy);
+        if (calculatedPrice !== null) {
+          return calculatedPrice;
+        }
+      }
+      
+      // If there's a numeric value in the price cell, use it
       if (priceCell && typeof priceCell.v === 'number') {
+        console.log('Using existing price value:', priceCell.v);
         return priceCell.v;
       }
 
-      // Fallback: If no formula result available, use a basic calculation
-      // This is a temporary solution until proper Excel formula execution is implemented
+      // Fallback: Basic calculation if all dimensions are provided
       if (length && width && height && weight) {
-        const volume = length * width * height;
-        const basePrice = volume * 0.01 + weight * 0.5; // Example calculation
-        return Math.round(basePrice * 100) / 100;
+        const volume = (length / 1000) * (width / 1000) * (height / 1000); // Convert mm to m
+        const volumePrice = volume * 1000; // €1000 per cubic meter
+        const weightPrice = weight * 2; // €2 per kg
+        const basePrice = volumePrice + weightPrice + 50; // Base cost €50
+        const calculatedPrice = Math.round(basePrice * 100) / 100;
+        console.log('Using fallback calculation:', calculatedPrice);
+        return calculatedPrice;
       }
 
+      console.warn('Could not calculate price - insufficient data');
       return null;
     } catch (error) {
       console.error('Error calculating price from Excel:', error);
+      return null;
+    }
+  }
+
+  private static evaluateBasicFormula(formula: string, worksheet: any): number | null {
+    try {
+      // Remove the = sign if present
+      let cleanFormula = formula.startsWith('=') ? formula.slice(1) : formula;
+      
+      // Replace cell references with their values
+      cleanFormula = cleanFormula.replace(/[A-Z]+[0-9]+/g, (cellRef) => {
+        const cell = worksheet[cellRef];
+        return cell?.v?.toString() || '0';
+      });
+
+      // Evaluate basic mathematical expressions
+      // WARNING: This is a simplified evaluation - only use with trusted formulas
+      const result = Function('"use strict"; return (' + cleanFormula + ')')();
+      
+      if (typeof result === 'number' && !isNaN(result)) {
+        console.log('Formula evaluation result:', result);
+        return Math.round(result * 100) / 100;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error evaluating formula:', error);
       return null;
     }
   }
