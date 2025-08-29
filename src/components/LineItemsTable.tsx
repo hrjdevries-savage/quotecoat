@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft } from 'lucide-react';
+import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft, Calculator } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,31 @@ export function LineItemsTable() {
   };
 
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
+
+  const calculatePrice = async (itemId: string) => {
+    const item = currentDraft?.lineItems.find(item => item.id === itemId);
+    if (!item) return;
+
+    const { ExcelPriceService } = await import('@/services/ExcelPriceService');
+    if (await ExcelPriceService.isConfigured()) {
+      // Only calculate if all required fields have values
+      if (item.lengte && item.breedte && item.hoogte && item.gewichtKg) {
+        const result = await ExcelPriceService.calculatePrice(
+          item.lengte,
+          item.breedte, 
+          item.hoogte,
+          item.gewichtKg
+        );
+        
+        // Store debug info for this item
+        setDebugInfo(prev => ({ ...prev, [itemId]: result.debugInfo }));
+        
+        if (result.price !== null) {
+          updateLineItem(itemId, { price: result.price });
+        }
+      }
+    }
+  };
 
   const debouncedCalculatePrice = useDebouncedCallback(async (itemId: string, updatedItem: any) => {
     const item = currentDraft?.lineItems.find(item => item.id === itemId);
@@ -154,7 +179,7 @@ export function LineItemsTable() {
                 <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
-                <th className="text-left p-2 font-medium text-xs w-20">Prijs (€)</th>
+                <th className="text-left p-2 font-medium text-xs w-24">Prijs (€)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
               </tr>
             </thead>
@@ -279,17 +304,29 @@ export function LineItemsTable() {
                         />
                       </td>
                       
-                      <td className="p-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.price || ''}
-                          onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                          placeholder="0.00"
-                          className="h-8 text-xs"
-                        />
-                      </td>
+                       <td className="p-2">
+                         <div className="flex gap-1 items-center">
+                           <Input
+                             type="number"
+                             min="0"
+                             step="0.01"
+                             value={item.price || ''}
+                             onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                             placeholder="0.00"
+                             className="h-8 text-xs flex-1"
+                           />
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => calculatePrice(item.id)}
+                             disabled={!item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg}
+                             className="h-8 w-8 p-0"
+                             title="Bereken prijs met Excel"
+                           >
+                             <Calculator className="h-3 w-3" />
+                           </Button>
+                         </div>
+                       </td>
                       
                       <td className="p-2">
                         <Button

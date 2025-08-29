@@ -255,9 +255,10 @@ export class ExcelPriceService {
         debugInfo.inputCells[cellRef] = value;
       }
 
-      // Check for formula in the price cell
-      const originalPriceCell = worksheet[this.cachedConfig.priceCell];
-      debugInfo.outputCell.ref = this.cachedConfig.priceCell;
+      // Check for formula in L17 (fixed price cell)
+      const priceCell = 'L17';
+      const originalPriceCell = worksheet[priceCell];
+      debugInfo.outputCell.ref = priceCell;
 
       if (originalPriceCell?.f) {
         console.log('Found formula in price cell:', originalPriceCell.f);
@@ -299,8 +300,8 @@ export class ExcelPriceService {
         }
       }
 
-      // If no formula found, check if there's a static value
-      const staticPrice = worksheetCopy[this.cachedConfig.priceCell]?.v;
+      // If no formula found, check if there's a static value in L17
+      const staticPrice = worksheetCopy[priceCell]?.v;
       if (typeof staticPrice === 'number' && staticPrice >= 0) {
         const roundedPrice = Math.round(staticPrice * 100) / 100;
         debugInfo.outputCell.value = roundedPrice;
