@@ -207,7 +207,7 @@ export type Database = {
           client_reference: string | null
           created_at: string
           id: string
-          owner_id: string | null
+          owner_id: string
           pdf_file_path: string | null
           quote_number: string
           status: string | null
@@ -225,7 +225,7 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
-          owner_id?: string | null
+          owner_id: string
           pdf_file_path?: string | null
           quote_number: string
           status?: string | null
@@ -243,7 +243,7 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
-          owner_id?: string | null
+          owner_id?: string
           pdf_file_path?: string | null
           quote_number?: string
           status?: string | null
