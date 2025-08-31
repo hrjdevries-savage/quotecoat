@@ -107,6 +107,7 @@ export async function calcL17({
   height: number | string;
   weight: number | string;
 }): Promise<number | null> {
+  console.log('🚀 calc start, sheet:', sheet);
   try {
     // Normalize inputs (convert commas to dots)
     const normalizedLength = normalizeNumber(length);
@@ -162,6 +163,34 @@ export async function calcL17({
 
     // Recalculate formulas using xlsxCalc
     console.log('🧮 Starting formula recalculation...');
+    
+    // Helper functions for MEDIAN
+    function __flatten(a: any): any[] { 
+      return Array.isArray(a) ? a.flat(Infinity) : [a]; 
+    }
+    
+    function __toNum(x: any): number | null {
+      if (x == null) return null;
+      if (typeof x === "number") return Number.isNaN(x) ? null : x;
+      if (typeof x === "object" && "v" in x) return __toNum((x as any).v);
+      if (typeof x === "string") {
+        const n = parseFloat(x.replace(",", "."));
+        return Number.isNaN(n) ? null : n;
+      }
+      return null;
+    }
+
+    // Register custom MEDIAN function
+    xlsxCalc.import_functions({
+      MEDIAN: (...args: any[]) => {
+        const vals = __flatten(args).map(__toNum).filter((n) => typeof n === "number") as number[];
+        if (vals.length === 0) return 0; // Excel geeft 0 als er geen numerieke waarden zijn
+        vals.sort((a, b) => a - b);
+        const m = Math.floor(vals.length / 2);
+        return vals.length % 2 ? vals[m] : (vals[m - 1] + vals[m]) / 2;
+      },
+    });
+    
     xlsxCalc(tempWorkbook);
     console.log('✅ Formula recalculation complete');
 
