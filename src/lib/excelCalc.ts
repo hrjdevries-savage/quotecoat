@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 // @ts-ignore - xlsx-calc has no types
-import xlsxCalc from 'xlsx-calc/dist/xlsx-calc.min.js';
+import xlsxCalc from 'xlsx-calc';
 
 // Template URL constant
 const TEMPLATE_URL = 'https://isonacokyyhnwpmwbpqp.supabase.co/storage/v1/object/public/files/Prijsstelling%20per%20sheet%202.0.xlsx';
