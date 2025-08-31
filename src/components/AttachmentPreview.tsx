@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Attachment } from '@/types';
 import { StepViewer } from './StepViewer';
+import { supabase } from '@/integrations/supabase/client';
 import * as pdfjsLib from 'pdfjs-dist';
 
 interface AttachmentPreviewProps {
@@ -88,8 +89,19 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
             // If we have the original file, use it directly
             console.log('Loading PDF from file object');
             arrayBuffer = await attachment.file.arrayBuffer();
+          } else if (attachment.filePath) {
+            // Try to load from Supabase storage using filePath
+            console.log('Loading PDF from storage path:', attachment.filePath);
+            const { data, error } = await supabase.storage
+              .from('quote-attachments')
+              .download(attachment.filePath);
+            
+            if (error) {
+              throw new Error(`Failed to download from storage: ${error.message}`);
+            }
+            arrayBuffer = await data.arrayBuffer();
           } else if (attachment.blobUrl) {
-            // Try to fetch from blob URL
+            // Try to fetch from blob URL (fallback)
             console.log('Loading PDF from blob URL');
             const response = await fetch(attachment.blobUrl);
             if (!response.ok) {
@@ -97,7 +109,7 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
             }
             arrayBuffer = await response.arrayBuffer();
           } else {
-            throw new Error('No file data available');
+            throw new Error('No file data available - please re-upload the file');
           }
           
           console.log('PDF data size:', arrayBuffer.byteLength);
@@ -121,7 +133,18 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
         } catch (error) {
           console.error('Error loading PDF:', error);
           if (pdfContainerRef.current) {
-            pdfContainerRef.current.innerHTML = '<p class="text-destructive p-4">Error loading PDF preview: ' + error.message + '</p>';
+            pdfContainerRef.current.innerHTML = `
+              <div class="flex flex-col items-center justify-center p-8 space-y-4 bg-muted/20 rounded-lg">
+                <div class="w-16 h-16 bg-destructive/10 rounded-lg flex items-center justify-center">
+                  <span class="text-2xl">⚠️</span>
+                </div>
+                <div class="text-center">
+                  <p class="font-medium text-destructive">PDF preview kon niet geladen worden</p>
+                  <p class="text-sm text-muted-foreground mt-2">${error.message}</p>
+                  <p class="text-xs text-muted-foreground mt-2">Download het bestand om het te bekijken</p>
+                </div>
+              </div>
+            `;
           }
         }
       };
@@ -145,7 +168,18 @@ export function AttachmentPreview({ attachment, isOpen, onClose }: AttachmentPre
   const isImage = attachment.mimeType.startsWith('image/');
 
   const handleDownload = () => {
-    if (attachment.blobUrl) {
+    if (attachment.file) {
+      // Download from original file object
+      const url = URL.createObjectURL(attachment.file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else if (attachment.blobUrl) {
+      // Download from blob URL (legacy)
       const a = document.createElement('a');
       a.href = attachment.blobUrl;
       a.download = attachment.fileName;
