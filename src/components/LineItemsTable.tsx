@@ -5,11 +5,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { LineItem } from '@/types';
 import { formatFileSize } from '@/utils/helpers';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ExcelDebugPanel } from './ExcelDebugPanel';
+import { calcL17, type SheetType, testCalculation } from '@/lib/excelCalc';
 export function LineItemsTable() {
   const {
     currentDraft,
@@ -20,6 +23,8 @@ export function LineItemsTable() {
     clearDraft
   } = useQuoteStore();
   const [showPreviewId, setShowPreviewId] = useState<string | null>(null);
+  const [excelResults, setExcelResults] = useState<Record<string, { sheet: SheetType; result: number | null; error?: string }>>({});
+  const [excelLoading, setExcelLoading] = useState<Record<string, boolean>>({});
   if (!currentDraft) return null;
   const handleAddEmptyRow = () => {
     const newItem: LineItem = {
@@ -31,7 +36,8 @@ export function LineItemsTable() {
       breedte: null,
       hoogte: null,
       gewichtKg: null,
-      price: null
+      price: null,
+      excelSheet: 'Sublimotion' as SheetType
     };
     addLineItem(newItem);
   };
@@ -50,6 +56,61 @@ export function LineItemsTable() {
 
     // Debounced price calculation
     debouncedCalculatePrice(itemId, updatedItem);
+  };
+
+  const handleExcelCalculation = async (itemId: string) => {
+    const item = currentDraft?.lineItems.find(item => item.id === itemId);
+    if (!item || !item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg) {
+      return;
+    }
+
+    setExcelLoading(prev => ({ ...prev, [itemId]: true }));
+    setExcelResults(prev => ({ ...prev, [itemId]: { sheet: item.excelSheet || 'Sublimotion', result: null } }));
+
+    try {
+      const result = await calcL17({
+        sheet: item.excelSheet || 'Sublimotion',
+        length: item.lengte,
+        width: item.breedte,
+        height: item.hoogte,
+        weight: item.gewichtKg
+      });
+
+      setExcelResults(prev => ({
+        ...prev,
+        [itemId]: { sheet: item.excelSheet || 'Sublimotion', result }
+      }));
+
+      // Optionally update the price with Excel result
+      if (result !== null) {
+        updateLineItem(itemId, { price: result });
+      }
+
+    } catch (error) {
+      console.error('Excel calculation error:', error);
+      setExcelResults(prev => ({
+        ...prev,
+        [itemId]: { 
+          sheet: item.excelSheet || 'Sublimotion', 
+          result: null, 
+          error: error instanceof Error ? error.message : 'Berekening mislukt' 
+        }
+      }));
+    } finally {
+      setExcelLoading(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const handleSheetChange = (itemId: string, sheet: SheetType) => {
+    updateLineItem(itemId, { excelSheet: sheet });
+  };
+
+  const handleTestCalculation = async () => {
+    try {
+      await testCalculation();
+    } catch (error) {
+      console.error('Test failed:', error);
+    }
   };
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
   const calculatePrice = async (itemId: string) => {
@@ -169,6 +230,8 @@ export function LineItemsTable() {
                 <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
+                <th className="text-left p-2 font-medium text-xs w-28">Excel Sheet</th>
+                <th className="text-left p-2 font-medium text-xs w-24">Excel L17</th>
                 <th className="text-left p-2 font-medium text-xs w-24">Prijs (€)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
               </tr>
@@ -232,10 +295,49 @@ export function LineItemsTable() {
                         <Input type="number" min="0" step="0.01" value={item.gewichtKg || ''} onChange={e => handleDimensionChange(item.id, 'gewichtKg', e.target.value)} placeholder="0" className="h-8 text-xs" />
                       </td>
                       
+                      <td className="p-2">
+                        <Select value={item.excelSheet || 'Sublimotion'} onValueChange={(value: SheetType) => handleSheetChange(item.id, value)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Sublimotion">Sublimotion</SelectItem>
+                            <SelectItem value="Verzinken">Verzinken</SelectItem>
+                            <SelectItem value="Dompelbeitsen">Dompelbeitsen</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+
+                      <td className="p-2">
+                        <div className="flex gap-1 items-center">
+                          <Input 
+                            readOnly 
+                            value={excelResults[item.id]?.error ? 'Error' : (excelResults[item.id]?.result !== undefined ? (excelResults[item.id]?.result || '').toString() : '')} 
+                            placeholder="Klik bereken" 
+                            className="h-8 text-xs flex-1 px-[5px] bg-muted" 
+                            title={excelResults[item.id]?.error || ''}
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleExcelCalculation(item.id)} 
+                            disabled={!item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg || excelLoading[item.id]} 
+                            className="h-8 w-8 p-0" 
+                            title="Bereken met Excel"
+                          >
+                            {excelLoading[item.id] ? (
+                              <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Calculator className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </td>
+                      
                        <td className="p-2">
                          <div className="flex gap-1 items-center">
                            <Input type="number" min="0" step="0.01" value={item.price || ''} onChange={e => handlePriceChange(item.id, e.target.value)} placeholder="0.00" className="h-8 text-xs flex-1 px-[5px]" />
-                           <Button variant="outline" size="sm" onClick={() => calculatePrice(item.id)} disabled={!item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg} className="h-8 w-8 p-0" title="Bereken prijs met Excel">
+                           <Button variant="outline" size="sm" onClick={() => calculatePrice(item.id)} disabled={!item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg} className="h-8 w-8 p-0" title="Bereken prijs met Excel (oude methode)">
                              <Calculator className="h-3 w-3" />
                            </Button>
                          </div>
@@ -250,7 +352,7 @@ export function LineItemsTable() {
                     
                     {/* Debug Panel Row */}
                     {debugInfo[item.id] && <tr>
-                        <td colSpan={11} className="p-2">
+                        <td colSpan={13} className="p-2">
                           <ExcelDebugPanel debugInfo={debugInfo[item.id]} lineItemId={item.id} />
                         </td>
                       </tr>}
@@ -266,6 +368,10 @@ export function LineItemsTable() {
               <Button variant="outline" size="sm">
                 <DollarSign className="mr-2 h-4 w-4" />
                 Wis alle prijzen
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleTestCalculation}>
+                <Calculator className="mr-2 h-4 w-4" />
+                Test Excel (L=2000, B=500, H=500, W=700)
               </Button>
             </div>
             

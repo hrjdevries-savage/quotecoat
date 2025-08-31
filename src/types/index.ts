@@ -20,6 +20,7 @@ export type LineItem = {
   hoogte: number | null;
   gewichtKg: number | null;
   price: number | null;
+  excelSheet?: 'Verzinken' | 'Dompelbeitsen' | 'Sublimotion';
 };
 
 export type QuoteMeta = {
