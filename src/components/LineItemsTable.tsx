@@ -48,14 +48,17 @@ export function LineItemsTable() {
     });
   };
   const handleDimensionChange = async (itemId: string, field: 'lengte' | 'breedte' | 'hoogte' | 'gewichtKg', value: string) => {
-    const numericValue = value === '' ? null : parseFloat(value);
+    // Convert comma to dot for decimal numbers
+    const normalizedValue = value.replace(',', '.');
+    const numericValue = normalizedValue === '' ? null : parseFloat(normalizedValue);
+    
     const updatedItem = {
       [field]: numericValue
     };
     updateLineItem(itemId, updatedItem);
 
-    // Debounced price calculation
-    debouncedCalculatePrice(itemId, updatedItem);
+    // Auto-calculate Excel price when all dimensions are filled
+    debouncedExcelCalculation(itemId);
   };
 
   const handleExcelCalculation = async (itemId: string) => {
@@ -81,7 +84,7 @@ export function LineItemsTable() {
         [itemId]: { sheet: item.excelSheet || 'Sublimotion', result }
       }));
 
-      // Optionally update the price with Excel result
+      // Update the price with Excel result
       if (result !== null) {
         updateLineItem(itemId, { price: result });
       }
@@ -99,6 +102,33 @@ export function LineItemsTable() {
     } finally {
       setExcelLoading(prev => ({ ...prev, [itemId]: false }));
     }
+  };
+
+  // Debounced auto-calculation for Excel prices
+  const debouncedExcelCalculation = useDebouncedCallback(async (itemId: string) => {
+    const item = currentDraft?.lineItems.find(item => item.id === itemId);
+    if (!item || !item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg) {
+      return;
+    }
+    
+    // Auto-calculate if all dimensions are filled
+    await handleExcelCalculation(itemId);
+  }, 400);
+
+  // Bulk calculate all rows
+  const handleBulkCalculation = async () => {
+    if (!currentDraft) return;
+    
+    const validItems = currentDraft.lineItems.filter(item => 
+      item.lengte && item.breedte && item.hoogte && item.gewichtKg
+    );
+    
+    for (const item of validItems) {
+      await handleExcelCalculation(item.id);
+    }
+    
+    // Show success message (you can implement a toast/snackbar here)
+    alert('Prijzen bijgewerkt');
   };
 
   const handleSheetChange = (itemId: string, sheet: SheetType) => {
@@ -195,11 +225,21 @@ export function LineItemsTable() {
   }, 250); // 250ms debounce delay
 
   const formatPrice = (price: number | null) => {
-    if (price === null) return '';
+    if (price === null) return '—';
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(price);
+  };
+
+  // Calculate total from Excel prices
+  const getTotalExcelPrice = () => {
+    if (!currentDraft) return 0;
+    return currentDraft.lineItems.reduce((total, item) => {
+      return total + (item.price || 0);
+    }, 0);
   };
   const getFilePreview = (lineItem: LineItem) => {
     const attachment = currentDraft.attachments.find(att => att.id === lineItem.attachmentId);
@@ -243,14 +283,12 @@ export function LineItemsTable() {
                 <th className="text-left p-3 font-semibold text-xs min-w-[140px]">Bestand</th>
                 <th className="text-left p-3 font-semibold text-xs min-w-[160px]">Omschrijving</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">Tekeningnr.</th>
-                <th className="text-left p-3 font-semibold text-xs min-w-[100px]">Behandeling</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">L (mm)</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
                 <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
                 <th className="text-left p-2 font-medium text-xs w-28">Excel Sheet</th>
-                <th className="text-left p-2 font-medium text-xs w-24">Excel L17</th>
-                <th className="text-left p-2 font-medium text-xs w-24">Prijs (€)</th>
+                <th className="text-left p-2 font-medium text-xs min-w-[140px]">Prijs (Excel L17)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
               </tr>
             </thead>
@@ -292,12 +330,6 @@ export function LineItemsTable() {
                       </td>
                       
                       <td className="p-2">
-                        <Input value={item.behandeling} onChange={e => updateLineItem(item.id, {
-                      behandeling: e.target.value
-                    })} placeholder="Behandeling..." className="h-8 text-xs" />
-                      </td>
-                      
-                      <td className="p-2">
                         <Input type="number" min="0" step="0.1" value={item.lengte || ''} onChange={e => handleDimensionChange(item.id, 'lengte', e.target.value)} placeholder="0" className="h-8 text-xs" />
                       </td>
                       
@@ -333,13 +365,13 @@ export function LineItemsTable() {
                             value={
                               excelResults[item.id]?.error 
                                 ? `ERR: ${excelResults[item.id]?.error}` 
-                                : excelResults[item.id]?.result !== undefined 
-                                  ? `OK: ${excelResults[item.id]?.result || 'null'}` 
-                                  : ''
+                                : item.price !== null
+                                  ? formatPrice(item.price)
+                                  : '—'
                             } 
-                            placeholder="Klik bereken" 
-                            className="h-8 text-xs flex-1 px-[5px] bg-muted" 
-                            title={excelResults[item.id]?.error || `Result: ${excelResults[item.id]?.result}`}
+                            placeholder="Auto-bereken" 
+                            className="h-8 text-xs flex-1 px-[5px] bg-muted/50" 
+                            title={excelResults[item.id]?.error || `Prijs: ${formatPrice(item.price)}`}
                           />
                           <Button 
                             variant="outline" 
@@ -358,15 +390,6 @@ export function LineItemsTable() {
                         </div>
                       </td>
                       
-                       <td className="p-2">
-                         <div className="flex gap-1 items-center">
-                           <Input type="number" min="0" step="0.01" value={item.price || ''} onChange={e => handlePriceChange(item.id, e.target.value)} placeholder="0.00" className="h-8 text-xs flex-1 px-[5px]" />
-                           <Button variant="outline" size="sm" onClick={() => calculatePrice(item.id)} disabled={!item.lengte || !item.breedte || !item.hoogte || !item.gewichtKg} className="h-8 w-8 p-0" title="Bereken prijs met Excel (oude methode)">
-                             <Calculator className="h-3 w-3" />
-                           </Button>
-                         </div>
-                       </td>
-                      
                       <td className="p-2">
                         <Button variant="outline" size="sm" onClick={() => removeLineItem(item.id)} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
                           <Trash2 className="h-3 w-3" />
@@ -376,7 +399,7 @@ export function LineItemsTable() {
                     
                     {/* Debug Panel Row */}
                     {debugInfo[item.id] && <tr>
-                        <td colSpan={13} className="p-2">
+                        <td colSpan={11} className="p-2">
                           <ExcelDebugPanel debugInfo={debugInfo[item.id]} lineItemId={item.id} />
                         </td>
                       </tr>}
@@ -389,9 +412,9 @@ export function LineItemsTable() {
         <div className="border-t bg-muted/30 p-4">
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <DollarSign className="mr-2 h-4 w-4" />
-                Wis alle prijzen
+              <Button variant="outline" size="sm" onClick={handleBulkCalculation}>
+                <Calculator className="mr-2 h-4 w-4" />
+                Reken alle regels
               </Button>
               <Button variant="outline" size="sm" onClick={handleTestCalculation} disabled={excelLoading['test']}>
                 {excelLoading['test'] ? (
@@ -404,9 +427,9 @@ export function LineItemsTable() {
             </div>
             
             <div className="text-right">
-              <div className="text-sm text-muted-foreground">Totaal</div>
+              <div className="text-sm text-muted-foreground">Totaal (Excel)</div>
               <div className="text-2xl font-bold text-primary">
-                {formatPrice(getTotalPrice())}
+                {formatPrice(getTotalExcelPrice())}
               </div>
             </div>
           </div>
