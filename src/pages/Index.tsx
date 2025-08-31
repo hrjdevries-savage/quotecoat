@@ -6,7 +6,7 @@ import { useQuoteStore } from '@/store/useQuoteStore';
 import { Settings, HelpCircle, ArrowLeft, FileText, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-const Index = () => {
+export const Index = () => {
   const {
     currentDraft,
     clearDraft
