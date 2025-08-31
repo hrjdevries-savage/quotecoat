@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 // @ts-ignore - xlsx-calc has no types
-import calculate from 'xlsx-calc';
+import xlsxCalc from 'xlsx-calc/dist/xlsx-calc.min.js';
 
 // Template URL constant
 const TEMPLATE_URL = 'https://isonacokyyhnwpmwbpqp.supabase.co/storage/v1/object/public/files/Prijsstelling%20per%20sheet%202.0.xlsx';
@@ -16,11 +16,15 @@ let cachedWorkbook: XLSX.WorkBook | null = null;
  */
 async function downloadTemplate(): Promise<XLSX.WorkBook> {
   if (cachedWorkbook) {
+    console.log('📋 Using cached workbook');
     return cachedWorkbook;
   }
 
   try {
+    console.log('📥 Downloading Excel template from:', TEMPLATE_URL);
     const response = await fetch(TEMPLATE_URL);
+    console.log('✅ Fetch ok, status:', response.status);
+    
     if (!response.ok) {
       throw new Error(`Failed to download template: ${response.statusText}`);
     }
@@ -28,10 +32,14 @@ async function downloadTemplate(): Promise<XLSX.WorkBook> {
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     
+    // Log available sheets
+    const sheetNames = Object.keys(workbook.Sheets);
+    console.log('📊 Available sheets:', sheetNames);
+    
     cachedWorkbook = workbook;
     return workbook;
   } catch (error) {
-    console.error('Error downloading Excel template:', error);
+    console.error('❌ Error downloading Excel template:', error);
     throw new Error('Kan Excel template niet downloaden');
   }
 }
@@ -100,11 +108,18 @@ export async function calcL17({
   weight: number | string;
 }): Promise<number | null> {
   try {
-    // Normalize inputs
+    // Normalize inputs (convert commas to dots)
     const normalizedLength = normalizeNumber(length);
     const normalizedWidth = normalizeNumber(width);
     const normalizedHeight = normalizeNumber(height);
     const normalizedWeight = normalizeNumber(weight);
+
+    console.log('📝 Input values after normalization:', {
+      length: normalizedLength,
+      width: normalizedWidth, 
+      height: normalizedHeight,
+      weight: normalizedWeight
+    });
 
     // Validate inputs
     validateInputs(normalizedLength, normalizedWidth, normalizedHeight, normalizedWeight);
@@ -113,14 +128,24 @@ export async function calcL17({
     const workbook = await downloadTemplate();
 
     // Check if sheet exists
+    console.log(`🔍 Checking if sheet "${sheet}" exists`);
     if (!workbook.Sheets[sheet]) {
+      const availableSheets = Object.keys(workbook.Sheets);
+      console.log('❌ Available sheets:', availableSheets);
       throw new Error(`Werkblad "${sheet}" niet gevonden in template`);
     }
+    console.log(`✅ Sheet "${sheet}" found`);
 
     // Create a copy of the worksheet for calculation
     const worksheet = { ...workbook.Sheets[sheet] };
 
-    // Set input values in the specified cells
+    // Set input values in the specified cells (D67, D68, D69, D74)
+    console.log('📊 Setting cell values:');
+    console.log('  D67 (Length):', normalizedLength);
+    console.log('  D68 (Width):', normalizedWidth);
+    console.log('  D69 (Height):', normalizedHeight);
+    console.log('  D74 (Weight):', normalizedWeight);
+    
     setNum(worksheet, 'D67', normalizedLength);
     setNum(worksheet, 'D68', normalizedWidth);
     setNum(worksheet, 'D69', normalizedHeight);
@@ -135,13 +160,16 @@ export async function calcL17({
       }
     };
 
-    // Recalculate formulas
-    calculate(tempWorkbook);
+    // Recalculate formulas using xlsxCalc
+    console.log('🧮 Starting formula recalculation...');
+    xlsxCalc(tempWorkbook);
+    console.log('✅ Formula recalculation complete');
 
     // Get the result from L17
     const result = getVal(tempWorkbook.Sheets[sheet], 'L17');
+    console.log('📋 Raw value from L17:', result);
 
-    console.log(`Excel calculation result for ${sheet}:`, {
+    console.log(`🎯 Final Excel calculation result for ${sheet}:`, {
       inputs: { length: normalizedLength, width: normalizedWidth, height: normalizedHeight, weight: normalizedWeight },
       result
     });
@@ -149,7 +177,7 @@ export async function calcL17({
     return result;
 
   } catch (error) {
-    console.error('Error in calcL17:', error);
+    console.error('❌ Error in calcL17:', error);
     throw error;
   }
 }

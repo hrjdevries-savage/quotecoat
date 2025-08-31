@@ -107,9 +107,27 @@ export function LineItemsTable() {
 
   const handleTestCalculation = async () => {
     try {
-      await testCalculation();
+      setExcelLoading(prev => ({ ...prev, 'test': true }));
+      console.log('🧪 Starting test calculation...');
+      
+      const result = await calcL17({
+        sheet: 'Sublimotion',
+        length: 2000,
+        width: 500,
+        height: 500,
+        weight: 700
+      });
+      
+      if (result !== null) {
+        alert(`✅ Test successful: L17 = ${result}`);
+      } else {
+        alert('⚠️ Test returned null - check Excel formulas');
+      }
     } catch (error) {
-      console.error('Test failed:', error);
+      console.error('❌ Test failed:', error);
+      alert(`❌ Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setExcelLoading(prev => ({ ...prev, 'test': false }));
     }
   };
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
@@ -312,10 +330,16 @@ export function LineItemsTable() {
                         <div className="flex gap-1 items-center">
                           <Input 
                             readOnly 
-                            value={excelResults[item.id]?.error ? 'Error' : (excelResults[item.id]?.result !== undefined ? (excelResults[item.id]?.result || '').toString() : '')} 
+                            value={
+                              excelResults[item.id]?.error 
+                                ? `ERR: ${excelResults[item.id]?.error}` 
+                                : excelResults[item.id]?.result !== undefined 
+                                  ? `OK: ${excelResults[item.id]?.result || 'null'}` 
+                                  : ''
+                            } 
                             placeholder="Klik bereken" 
                             className="h-8 text-xs flex-1 px-[5px] bg-muted" 
-                            title={excelResults[item.id]?.error || ''}
+                            title={excelResults[item.id]?.error || `Result: ${excelResults[item.id]?.result}`}
                           />
                           <Button 
                             variant="outline" 
@@ -369,8 +393,12 @@ export function LineItemsTable() {
                 <DollarSign className="mr-2 h-4 w-4" />
                 Wis alle prijzen
               </Button>
-              <Button variant="outline" size="sm" onClick={handleTestCalculation}>
-                <Calculator className="mr-2 h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={handleTestCalculation} disabled={excelLoading['test']}>
+                {excelLoading['test'] ? (
+                  <div className="w-4 h-4 border border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                ) : (
+                  <Calculator className="mr-2 h-4 w-4" />
+                )}
                 Test Excel (L=2000, B=500, H=500, W=700)
               </Button>
             </div>
