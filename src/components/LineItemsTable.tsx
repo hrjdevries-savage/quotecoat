@@ -14,7 +14,6 @@ import { AttachmentPreview } from './AttachmentPreview';
 import { ExcelDebugPanel } from './ExcelDebugPanel';
 import { calcL17, type SheetType, testCalculation } from '@/lib/excelCalc';
 import { analyzeStepByUrl, analyzeStepByFile, ensureFile, isStepFile, parseNumberLoose, formatNumberLocale, DEMO_STEP_URL, MATERIALS, type StepAnalysisResult } from '@/services/StepAnalyzerService';
-
 export function LineItemsTable() {
   const {
     currentDraft,
@@ -24,16 +23,13 @@ export function LineItemsTable() {
     getTotalPrice,
     clearDraft
   } = useQuoteStore();
-  
   const [showPreviewId, setShowPreviewId] = useState<string | null>(null);
   const [excelResults, setExcelResults] = useState<Record<string, { sheet: SheetType; result: number | null; error?: string }>>({});
   const [excelLoading, setExcelLoading] = useState<Record<string, boolean>>({});
   const [stepAnalyzing, setStepAnalyzing] = useState<Record<string, boolean>>({});
   const [stepAnalysisErrors, setStepAnalysisErrors] = useState<Record<string, string>>({});
   const [stepAnalysisWarnings, setStepAnalysisWarnings] = useState<Record<string, string[]>>({});
-  
   if (!currentDraft) return null;
-
   const handleAddEmptyRow = () => {
     const newItem: LineItem = {
       id: `item_${Date.now()}`,
@@ -50,14 +46,12 @@ export function LineItemsTable() {
     };
     addLineItem(newItem);
   };
-
   const handlePriceChange = (itemId: string, value: string) => {
     const numValue = value === '' ? null : parseFloat(value);
     updateLineItem(itemId, {
       price: numValue
     });
   };
-
   const handleDimensionChange = async (itemId: string, field: 'lengte' | 'breedte' | 'hoogte' | 'gewichtKg', value: string) => {
     // Convert comma to dot for decimal numbers
     const normalizedValue = value.replace(',', '.');
@@ -292,13 +286,13 @@ export function LineItemsTable() {
       setExcelLoading(prev => ({ ...prev, 'test': false }));
     }
   };
-
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
-
   const calculatePrice = async (itemId: string) => {
     const item = currentDraft?.lineItems.find(item => item.id === itemId);
     if (!item) return;
-    const { ExcelPriceService } = await import('@/services/ExcelPriceService');
+    const {
+      ExcelPriceService
+    } = await import('@/services/ExcelPriceService');
     if (await ExcelPriceService.isConfigured()) {
       // Only calculate if all required fields have values
       if (item.lengte && item.breedte && item.hoogte && item.gewichtKg) {
@@ -317,11 +311,12 @@ export function LineItemsTable() {
       }
     }
   };
-
   const debouncedCalculatePrice = useDebouncedCallback(async (itemId: string, updatedItem: any) => {
     const item = currentDraft?.lineItems.find(item => item.id === itemId);
     if (!item) return;
-    const { ExcelPriceService } = await import('@/services/ExcelPriceService');
+    const {
+      ExcelPriceService
+    } = await import('@/services/ExcelPriceService');
     if (await ExcelPriceService.isConfigured()) {
       const updatedLineItem = {
         ...item,
@@ -372,7 +367,6 @@ export function LineItemsTable() {
       return total + (item.price || 0);
     }, 0);
   };
-
   const getFilePreview = (lineItem: LineItem) => {
     const attachment = currentDraft.attachments.find(att => att.id === lineItem.attachmentId);
     if (!attachment) return null;
@@ -384,21 +378,7 @@ export function LineItemsTable() {
       isCAD
     };
   };
-
-  const getErrorDisplayLogic = (item: LineItem) => {
-    const allDimensionsFilled = 
-      (item.lengte ?? 0) > 0 &&
-      (item.breedte ?? 0) > 0 &&
-      (item.hoogte ?? 0) > 0 &&
-      (item.gewichtKg ?? 0) > 0;
-    
-    const showError = !!stepAnalysisErrors[item.id] && !allDimensionsFilled;
-    
-    return { allDimensionsFilled, showError };
-  };
-
-  return (
-    <div className="w-full max-w-7xl mx-auto space-y-6">
+  return <div className="w-full max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
@@ -445,27 +425,19 @@ export function LineItemsTable() {
             </thead>
             <tbody>
               {currentDraft.lineItems.map(item => {
-                const preview = getFilePreview(item);
-                const { allDimensionsFilled, showError } = getErrorDisplayLogic(item);
-                
-                return (
-                  <React.Fragment key={item.id}>
+              const preview = getFilePreview(item);
+              return <React.Fragment key={item.id}>
                     <tr className="border-b hover:bg-muted/20 transition-colors">
                       <td className="p-2">
-                        {preview ? (
-                          <Button variant="outline" size="sm" onClick={() => setShowPreviewId(item.id)} className="h-6 w-6 p-0">
+                        {preview ? <Button variant="outline" size="sm" onClick={() => setShowPreviewId(item.id)} className="h-6 w-6 p-0">
                             <Eye className="h-3 w-3" />
-                          </Button>
-                        ) : (
-                          <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
+                          </Button> : <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
                             <span className="text-xs text-muted-foreground">-</span>
-                          </div>
-                        )}
+                          </div>}
                       </td>
                       
                       <td className="p-2">
-                        {item.fileName ? (
-                          <div className="space-y-1">
+                        {item.fileName ? <div className="space-y-1">
                             <div className="font-medium text-xs truncate max-w-[120px]">
                               {item.fileName}
                             </div>
@@ -505,34 +477,34 @@ export function LineItemsTable() {
                                       ))}
                                     </div>
                                   )}
-                                  {!stepAnalyzing[item.id] && (
-                                    <Button
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleRetryStepAnalysis(item.id)}
-                                      className="h-4 px-1 text-xs text-primary hover:text-primary"
-                                      title="Vul vanuit STEP"
-                                    >
-                                      <Upload className="h-3 w-3 mr-1" />
-                                      Vul
-                                    </Button>
-                                  )}
-                                  {showError && !stepAnalyzing[item.id] && (
-                                    <Button
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleRetryStepAnalysis(item.id)}
-                                      className="h-4 px-1 text-xs text-destructive hover:text-destructive"
-                                      title="Opnieuw analyseren"
-                                    >
-                                      <RotateCcw className="h-3 w-3 mr-1" />
-                                      Retry
-                                    </Button>
-                                  )}
+                                   {!stepAnalyzing[item.id] && (
+                                     <Button
+                                       variant="ghost" 
+                                       size="sm"
+                                       onClick={() => handleRetryStepAnalysis(item.id)}
+                                       className="h-4 px-1 text-xs text-primary hover:text-primary"
+                                       title="Vul vanuit STEP"
+                                     >
+                                       <Upload className="h-3 w-3 mr-1" />
+                                       Vul
+                                     </Button>
+                                   )}
+                                   {stepAnalysisErrors[item.id] && !stepAnalyzing[item.id] && (
+                                     <Button
+                                       variant="ghost" 
+                                       size="sm"
+                                       onClick={() => handleRetryStepAnalysis(item.id)}
+                                       className="h-4 px-1 text-xs text-destructive hover:text-destructive"
+                                       title="Opnieuw analyseren"
+                                     >
+                                       <RotateCcw className="h-3 w-3 mr-1" />
+                                       Retry
+                                     </Button>
+                                   )}
                                 </>
                               )}
                             </div>
-                            {showError && (
+                            {stepAnalysisErrors[item.id] && (
                               <div className="text-xs text-destructive max-w-[120px]">
                                 {stepAnalysisErrors[item.id]}
                               </div>
@@ -542,64 +514,31 @@ export function LineItemsTable() {
                                 Solids: {item.stepAnalysisResult.solids} | Vol: {formatNumberLocale(item.stepAnalysisResult.volume_m3, 6)} m³
                               </div>
                             )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">Handmatig</span>
-                        )}
+                          </div> : <span className="text-muted-foreground text-xs">Handmatig</span>}
                       </td>
                       
                       <td className="p-2">
-                        <Input 
-                          value={item.description} 
-                          onChange={e => updateLineItem(item.id, { description: e.target.value })} 
-                          placeholder="Omschrijving..." 
-                          className="h-8 text-xs" 
-                        />
+                        <Input value={item.description} onChange={e => updateLineItem(item.id, {
+                      description: e.target.value
+                    })} placeholder="Omschrijving..." className="h-8 text-xs" />
                       </td>
                       
                       <td className="p-2">
-                        <Input 
-                          value={item.drawingNumber} 
-                          onChange={e => updateLineItem(item.id, { drawingNumber: e.target.value })} 
-                          placeholder="Tekening..." 
-                          className="h-8 text-xs" 
-                        />
+                        <Input value={item.drawingNumber} onChange={e => updateLineItem(item.id, {
+                      drawingNumber: e.target.value
+                    })} placeholder="Tekening..." className="h-8 text-xs" />
                       </td>
                       
                       <td className="p-2">
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          step="0.1" 
-                          value={item.lengte || ''} 
-                          onChange={e => handleDimensionChange(item.id, 'lengte', e.target.value)} 
-                          placeholder="0" 
-                          className="h-8 text-xs" 
-                        />
+                        <Input type="number" min="0" step="0.1" value={item.lengte || ''} onChange={e => handleDimensionChange(item.id, 'lengte', e.target.value)} placeholder="0" className="h-8 text-xs" />
                       </td>
                       
                       <td className="p-2">
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          step="0.1" 
-                          value={item.breedte || ''} 
-                          onChange={e => handleDimensionChange(item.id, 'breedte', e.target.value)} 
-                          placeholder="0" 
-                          className="h-8 text-xs" 
-                        />
+                        <Input type="number" min="0" step="0.1" value={item.breedte || ''} onChange={e => handleDimensionChange(item.id, 'breedte', e.target.value)} placeholder="0" className="h-8 text-xs" />
                       </td>
                       
                       <td className="p-2">
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          step="0.1" 
-                          value={item.hoogte || ''} 
-                          onChange={e => handleDimensionChange(item.id, 'hoogte', e.target.value)} 
-                          placeholder="0" 
-                          className="h-8 text-xs" 
-                        />
+                        <Input type="number" min="0" step="0.1" value={item.hoogte || ''} onChange={e => handleDimensionChange(item.id, 'hoogte', e.target.value)} placeholder="0" className="h-8 text-xs" />
                       </td>
                       
                       <td className="p-2">
@@ -692,16 +631,13 @@ export function LineItemsTable() {
                     </tr>
                     
                     {/* Debug Panel Row */}
-                    {debugInfo[item.id] && (
-                      <tr>
-                        <td colSpan={12} className="p-2">
+                    {debugInfo[item.id] && <tr>
+                        <td colSpan={11} className="p-2">
                           <ExcelDebugPanel debugInfo={debugInfo[item.id]} lineItemId={item.id} />
                         </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                      </tr>}
+                  </React.Fragment>;
+            })}
             </tbody>
           </table>
         </div>
@@ -737,13 +673,6 @@ export function LineItemsTable() {
         </div>
       </Card>
       
-      <AttachmentPreview 
-        attachment={showPreviewId ? currentDraft.attachments.find(att => 
-          currentDraft.lineItems.find(item => item.id === showPreviewId)?.attachmentId === att.id
-        ) || null : null} 
-        isOpen={!!showPreviewId} 
-        onClose={() => setShowPreviewId(null)} 
-      />
-    </div>
-  );
+      <AttachmentPreview attachment={showPreviewId ? currentDraft.attachments.find(att => currentDraft.lineItems.find(item => item.id === showPreviewId)?.attachmentId === att.id) || null : null} isOpen={!!showPreviewId} onClose={() => setShowPreviewId(null)} />
+    </div>;
 }
