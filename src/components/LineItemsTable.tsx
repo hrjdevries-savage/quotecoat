@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft, Calculator } from 'lucide-react';
+import { Eye, Trash2, Plus, Copy, DollarSign, ArrowLeft, Calculator, Upload, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { formatFileSize } from '@/utils/helpers';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ExcelDebugPanel } from './ExcelDebugPanel';
 import { calcL17, type SheetType, testCalculation } from '@/lib/excelCalc';
+import { analyzeStepByUrl, isStepFile, parseNumberLoose, formatNumberLocale, DEMO_STEP_URL, MATERIALS, type StepAnalysisResult } from '@/services/StepAnalyzerService';
 export function LineItemsTable() {
   const {
     currentDraft,
@@ -25,6 +26,8 @@ export function LineItemsTable() {
   const [showPreviewId, setShowPreviewId] = useState<string | null>(null);
   const [excelResults, setExcelResults] = useState<Record<string, { sheet: SheetType; result: number | null; error?: string }>>({});
   const [excelLoading, setExcelLoading] = useState<Record<string, boolean>>({});
+  const [stepAnalyzing, setStepAnalyzing] = useState<Record<string, boolean>>({});
+  const [stepAnalysisErrors, setStepAnalysisErrors] = useState<Record<string, string>>({});
   if (!currentDraft) return null;
   const handleAddEmptyRow = () => {
     const newItem: LineItem = {
@@ -37,7 +40,8 @@ export function LineItemsTable() {
       hoogte: null,
       gewichtKg: null,
       price: null,
-      excelSheet: 'Sublimotion' as SheetType
+      excelSheet: 'Sublimotion' as SheetType,
+      material: 'steel'
     };
     addLineItem(newItem);
   };
@@ -133,6 +137,97 @@ export function LineItemsTable() {
 
   const handleSheetChange = (itemId: string, sheet: SheetType) => {
     updateLineItem(itemId, { excelSheet: sheet });
+  };
+
+  const handleMaterialChange = (itemId: string, material: string) => {
+    updateLineItem(itemId, { material });
+  };
+
+  const handleDensityChange = (itemId: string, value: string) => {
+    const density = value === '' ? undefined : parseFloat(value.replace(',', '.'));
+    updateLineItem(itemId, { density });
+  };
+
+  const analyzeStepFile = async (itemId: string, fileUrl: string) => {
+    const item = currentDraft?.lineItems.find(item => item.id === itemId);
+    if (!item) return;
+
+    setStepAnalyzing(prev => ({ ...prev, [itemId]: true }));
+    setStepAnalysisErrors(prev => ({ ...prev, [itemId]: '' }));
+
+    try {
+      console.log('🔬 Starting STEP analysis for:', item.fileName);
+      const result: StepAnalysisResult = await analyzeStepByUrl(
+        fileUrl, 
+        item.material || 'steel',
+        item.density
+      );
+
+      console.log('✅ STEP analysis result:', result);
+
+      // Update line item with analysis results
+      updateLineItem(itemId, {
+        lengte: result.L,
+        breedte: result.B,
+        hoogte: result.H,
+        gewichtKg: result.W,
+        stepAnalysisResult: {
+          solids: result.solids,
+          volume_m3: result.volume_m3,
+          autoFilled: true
+        }
+      });
+
+      // Auto-trigger Excel calculation after successful analysis
+      setTimeout(() => {
+        handleExcelCalculation(itemId);
+      }, 500);
+
+    } catch (error) {
+      console.error('❌ STEP analysis failed:', error);
+      setStepAnalysisErrors(prev => ({
+        ...prev,
+        [itemId]: 'Analyseren van STEP is niet gelukt. Probeer opnieuw of vul L, B, H en Gewicht handmatig in.'
+      }));
+    } finally {
+      setStepAnalyzing(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const handleRetryStepAnalysis = async (itemId: string) => {
+    const item = currentDraft?.lineItems.find(item => item.id === itemId);
+    if (!item) return;
+
+    const attachment = currentDraft.attachments.find(att => att.id === item.attachmentId);
+    if (!attachment) return;
+
+    // Try to get a valid URL for the file
+    if (attachment.url) {
+      await analyzeStepFile(itemId, attachment.url);
+    }
+  };
+
+  const handleDemoStepAnalysis = async () => {
+    // Create a demo line item
+    const demoItem: LineItem = {
+      id: `demo_${Date.now()}`,
+      description: 'Demo STEP Analysis',
+      drawingNumber: 'DEMO-001',
+      behandeling: '',
+      lengte: null,
+      breedte: null,
+      hoogte: null,
+      gewichtKg: null,
+      price: null,
+      excelSheet: 'Sublimotion' as SheetType,
+      material: 'steel',
+      fileName: 'demo.step'
+    };
+    
+    addLineItem(demoItem);
+    
+    // Analyze the demo STEP file
+    await analyzeStepFile(demoItem.id, DEMO_STEP_URL);
   };
 
   const handleTestCalculation = async () => {
@@ -286,7 +381,8 @@ export function LineItemsTable() {
                 <th className="text-left p-3 font-semibold text-xs w-20">L (mm)</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
                 <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
-                <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
+                <th className="text-left p-2 font-medium text-xs w-20">Gewicht (kg)</th>
+                <th className="text-left p-2 font-medium text-xs w-24">Materiaal</th>
                 <th className="text-left p-2 font-medium text-xs w-28">Excel Sheet</th>
                 <th className="text-left p-2 font-medium text-xs min-w-[140px]">Prijs (Excel L17)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
@@ -310,10 +406,47 @@ export function LineItemsTable() {
                             <div className="font-medium text-xs truncate max-w-[120px]">
                               {item.fileName}
                             </div>
-                            {preview && <div className="flex gap-1 flex-wrap">
-                                {preview.isPDF && <Badge variant="secondary" className="text-xs h-4 px-1">PDF</Badge>}
-                                {preview.isCAD && <Badge variant="secondary" className="text-xs h-4 px-1">CAD</Badge>}
-                              </div>}
+                            <div className="flex gap-1 flex-wrap items-center">
+                              {preview?.isPDF && <Badge variant="secondary" className="text-xs h-4 px-1">PDF</Badge>}
+                              {preview?.isCAD && <Badge variant="secondary" className="text-xs h-4 px-1">CAD</Badge>}
+                              {isStepFile(item.fileName) && (
+                                <>
+                                  {stepAnalyzing[item.id] && (
+                                    <div className="flex items-center gap-1">
+                                      <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
+                                      <span className="text-xs text-primary">Analyseren...</span>
+                                    </div>
+                                  )}
+                                  {item.stepAnalysisResult?.autoFilled && !stepAnalyzing[item.id] && (
+                                    <Badge variant="outline" className="text-xs h-4 px-1 text-primary border-primary">
+                                      Auto-ingevuld
+                                    </Badge>
+                                  )}
+                                  {stepAnalysisErrors[item.id] && !stepAnalyzing[item.id] && (
+                                    <Button
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => handleRetryStepAnalysis(item.id)}
+                                      className="h-4 px-1 text-xs text-destructive hover:text-destructive"
+                                      title="Opnieuw analyseren"
+                                    >
+                                      <RotateCcw className="h-3 w-3 mr-1" />
+                                      Retry
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            {stepAnalysisErrors[item.id] && (
+                              <div className="text-xs text-destructive max-w-[120px]">
+                                {stepAnalysisErrors[item.id]}
+                              </div>
+                            )}
+                            {item.stepAnalysisResult && !stepAnalysisErrors[item.id] && (
+                              <div className="text-xs text-muted-foreground max-w-[120px]">
+                                Solids: {item.stepAnalysisResult.solids} | Vol: {formatNumberLocale(item.stepAnalysisResult.volume_m3, 6)} m³
+                              </div>
+                            )}
                           </div> : <span className="text-muted-foreground text-xs">Handmatig</span>}
                       </td>
                       
@@ -342,7 +475,40 @@ export function LineItemsTable() {
                       </td>
                       
                       <td className="p-2">
-                        <Input type="number" min="0" step="0.01" value={item.gewichtKg || ''} onChange={e => handleDimensionChange(item.id, 'gewichtKg', e.target.value)} placeholder="0" className="h-8 text-xs" />
+                        <div className="space-y-1">
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            step="0.01" 
+                            value={item.gewichtKg || ''} 
+                            onChange={e => handleDimensionChange(item.id, 'gewichtKg', e.target.value)} 
+                            placeholder="0" 
+                            className="h-8 text-xs" 
+                          />
+                          {(item.lengte && item.breedte && item.hoogte && item.gewichtKg) && 
+                           (item.lengte < 10 || item.breedte < 10 || item.hoogte < 10 || 
+                            item.lengte > 100000 || item.breedte > 100000 || item.hoogte > 100000) && (
+                            <div className="flex items-center gap-1 text-xs text-amber-600">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>Units controleren?</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      
+                      <td className="p-2">
+                        <Select value={item.material || 'steel'} onValueChange={(value) => handleMaterialChange(item.id, value)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MATERIALS.map(material => (
+                              <SelectItem key={material.value} value={material.value}>
+                                {material.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       
                       <td className="p-2">
@@ -411,7 +577,7 @@ export function LineItemsTable() {
         
         <div className="border-t bg-muted/30 p-4">
           <div className="flex justify-between items-center">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={handleBulkCalculation}>
                 <Calculator className="mr-2 h-4 w-4" />
                 Reken alle regels
@@ -423,6 +589,10 @@ export function LineItemsTable() {
                   <Calculator className="mr-2 h-4 w-4" />
                 )}
                 Test Excel (L=2000, B=500, H=500, W=700)
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDemoStepAnalysis} className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                <Upload className="mr-2 h-4 w-4" />
+                Demo STEP-analyse
               </Button>
             </div>
             

@@ -6,6 +6,7 @@ export type Attachment = {
   blobUrl?: string;
   file?: File;
   filePath?: string; // Add filePath for existing attachments
+  url?: string; // Add URL field for accessing file
 };
 
 export type LineItem = {
@@ -21,6 +22,13 @@ export type LineItem = {
   gewichtKg: number | null;
   price: number | null;
   excelSheet?: 'Verzinken' | 'Dompelbeitsen' | 'Sublimotion';
+  material?: string;
+  density?: number;
+  stepAnalysisResult?: {
+    solids: number;
+    volume_m3: number;
+    autoFilled: boolean;
+  };
 };
 
 export type QuoteMeta = {

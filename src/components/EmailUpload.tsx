@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { Attachment, LineItem, QuoteDraft } from '@/types';
+import { isStepFile, analyzeStepByUrl } from '@/services/StepAnalyzerService';
 
 export function EmailUpload() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -134,6 +135,7 @@ export function EmailUpload() {
               mimeType: mimeType,
               sizeBytes: byteArray.length,
               blobUrl: blobUrl,
+              url: blobUrl,
             };
             
             attachments.push(attachment);
@@ -201,6 +203,7 @@ export function EmailUpload() {
               mimeType: mimeType,
               sizeBytes: byteArray.length,
               blobUrl: blobUrl,
+              url: blobUrl,
             };
             
             attachments.push(attachment);
@@ -248,6 +251,7 @@ export function EmailUpload() {
               hoogte: null,
               gewichtKg: null,
               price: null,
+              material: 'steel',
             };
             
             lineItems.push(lineItem);
@@ -260,6 +264,7 @@ export function EmailUpload() {
             mimeType: file.type || 'application/octet-stream',
             sizeBytes: file.size,
             blobUrl: URL.createObjectURL(file),
+            url: URL.createObjectURL(file),
             file: file,
           };
           
@@ -278,6 +283,7 @@ export function EmailUpload() {
             hoogte: null,
             gewichtKg: null,
             price: null,
+            material: 'steel',
           };
           
           lineItems.push(lineItem);
@@ -310,6 +316,46 @@ export function EmailUpload() {
         attachments: attachments.map(a => ({ id: a.id, fileName: a.fileName, mimeType: a.mimeType })),
         lineItems: lineItems.map(l => ({ id: l.id, fileName: l.fileName, description: l.description }))
       });
+
+      // Auto-analyze STEP files after upload
+      for (const lineItem of lineItems) {
+        if (lineItem.fileName && isStepFile(lineItem.fileName)) {
+          const attachment = attachments.find(a => a.id === lineItem.attachmentId);
+          if (attachment?.blobUrl) {
+            try {
+              console.log('🔬 Auto-analyzing STEP file:', lineItem.fileName);
+              const result = await analyzeStepByUrl(attachment.blobUrl, 'steel');
+              
+              // Update the line item with analysis results
+              const updatedLineItem = {
+                ...lineItem,
+                lengte: result.L,
+                breedte: result.B,
+                hoogte: result.H,
+                gewichtKg: result.W,
+                stepAnalysisResult: {
+                  solids: result.solids,
+                  volume_m3: result.volume_m3,
+                  autoFilled: true
+                }
+              };
+
+              // Update the draft with the analyzed line item
+              draft.lineItems = draft.lineItems.map(item => 
+                item.id === lineItem.id ? updatedLineItem : item
+              );
+
+              console.log('✅ Auto-analysis completed for:', lineItem.fileName, result);
+            } catch (error) {
+              console.error('❌ Auto-analysis failed for:', lineItem.fileName, error);
+              // Continue processing other files even if one fails
+            }
+          }
+        }
+      }
+
+      // Update draft with any auto-analyzed items
+      setDraft(draft);
       
       toast({
         title: 'Bestanden verwerkt',
