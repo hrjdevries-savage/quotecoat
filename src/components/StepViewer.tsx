@@ -4,6 +4,17 @@ import { OrbitControls, Box, Cylinder, Sphere } from '@react-three/drei';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, RotateCcw, Maximize } from 'lucide-react';
 
+// Declare global Online3DViewer types
+declare global {
+  interface Window {
+    OV?: {
+      Init3DViewerFromUrlList: (element: HTMLElement, urls: string[], callbacks?: any) => any;
+      Init3DViewerFromFileList: (element: HTMLElement, files: File[], callbacks?: any) => any;
+      SetModelBoundingBox: (viewer: any, boundingBox: any) => void;
+    };
+  }
+}
+
 interface StepViewerProps {
   file?: File | null;
   blobUrl?: string;
@@ -57,26 +68,102 @@ function MechanicalPart() {
 
 export function StepViewer({ file, blobUrl, fileName, height = 400 }: StepViewerProps) {
   const controlsRef = useRef<any>();
+  const o3dvContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [useO3DV, setUseO3DV] = useState(false);
+  const [o3dvViewer, setO3DVViewer] = useState<any>(null);
   
   useEffect(() => {
-    // Ensure file is a proper File object for processing
-    if (file && !(file instanceof File) && fileName) {
-      // Convert Blob to File with proper name and mimetype
-      const convertedFile = new File([file as Blob], fileName, { type: 'model/step' });
-      // Process the converted file if needed
-    }
-    
-    // Simulate loading time
+    let mounted = true;
+
+    const initO3DV = async () => {
+      // Check if Online3DViewer is available
+      if (!window.OV || !o3dvContainerRef.current) {
+        console.log('O3DV not available, using fallback');
+        setUseO3DV(false);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        let viewer = null;
+        
+        if (file) {
+          // Handle local file
+          const fileToUse = file instanceof File ? file : new File([file as Blob], fileName || 'model.step', { type: 'model/step' });
+          viewer = window.OV.Init3DViewerFromFileList(o3dvContainerRef.current, [fileToUse], {
+            onModelLoaded: () => {
+              if (mounted) {
+                console.log('O3DV model loaded from file');
+                setUseO3DV(true);
+                setIsLoading(false);
+              }
+            },
+            onModelLoadFailed: () => {
+              if (mounted) {
+                console.log('O3DV failed to load file, using fallback');
+                setUseO3DV(false);
+                setIsLoading(false);
+              }
+            }
+          });
+        } else if (blobUrl) {
+          // Handle URL
+          const encodedUrl = encodeURI(blobUrl);
+          viewer = window.OV.Init3DViewerFromUrlList(o3dvContainerRef.current, [encodedUrl], {
+            onModelLoaded: () => {
+              if (mounted) {
+                console.log('O3DV model loaded from URL');
+                setUseO3DV(true);
+                setIsLoading(false);
+              }
+            },
+            onModelLoadFailed: () => {
+              if (mounted) {
+                console.log('O3DV failed to load URL, using fallback');
+                setUseO3DV(false);
+                setIsLoading(false);
+              }
+            }
+          });
+        }
+        
+        if (viewer && mounted) {
+          setO3DVViewer(viewer);
+        }
+      } catch (error) {
+        console.error('O3DV initialization failed:', error);
+        if (mounted) {
+          setUseO3DV(false);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-    
-    return () => clearTimeout(timer);
+      if (mounted) {
+        initO3DV();
+      }
+    }, 100);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
   }, [file, blobUrl, fileName]);
 
   const handleFitToWindow = () => {
-    if (controlsRef.current) {
+    if (useO3DV && o3dvViewer) {
+      try {
+        // Try to fit model in O3DV
+        if (o3dvViewer.FitModelToWindow) {
+          o3dvViewer.FitModelToWindow();
+        }
+      } catch (error) {
+        console.error('O3DV fit failed:', error);
+      }
+    } else if (controlsRef.current) {
       controlsRef.current.reset();
     }
   };
@@ -140,50 +227,59 @@ export function StepViewer({ file, blobUrl, fileName, height = 400 }: StepViewer
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mb-4 mx-auto"></div>
             <p className="text-gray-600">STEP-bestand laden...</p>
-            <p className="text-sm text-gray-500 mt-1">Mockup demonstratie</p>
+            <p className="text-sm text-gray-500 mt-1">{useO3DV ? '3D Model' : 'Mockup demonstratie'}</p>
           </div>
         </div>
       )}
 
-      {/* 3D Viewer */}
-      <Canvas
-        camera={{ position: [5, 5, 5], fov: 50 }}
-        className="w-full h-full"
-      >
-        {/* Lighting */}
-        <ambientLight intensity={0.4} />
-        <directionalLight
-          position={[10, 10, 5]}
-          intensity={1}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+      {/* O3DV Container */}
+      {useO3DV ? (
+        <div
+          ref={o3dvContainerRef}
+          className="w-full h-full"
+          style={{ background: 'linear-gradient(to bottom right, #f9fafb, #f3f4f6)' }}
         />
-        <directionalLight
-          position={[-10, -10, -5]}
-          intensity={0.3}
-        />
+      ) : (
+        /* Fallback 3D Viewer */
+        <Canvas
+          camera={{ position: [5, 5, 5], fov: 50 }}
+          className="w-full h-full"
+        >
+          {/* Lighting */}
+          <ambientLight intensity={0.4} />
+          <directionalLight
+            position={[10, 10, 5]}
+            intensity={1}
+            castShadow
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+          />
+          <directionalLight
+            position={[-10, -10, -5]}
+            intensity={0.3}
+          />
 
-        {/* Ground plane */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-          <planeGeometry args={[20, 20]} />
-          <meshStandardMaterial color="#f0f0f0" transparent opacity={0.5} />
-        </mesh>
+          {/* Ground plane */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+            <planeGeometry args={[20, 20]} />
+            <meshStandardMaterial color="#f0f0f0" transparent opacity={0.5} />
+          </mesh>
 
-        {/* Mechanical part */}
-        <MechanicalPart />
+          {/* Mechanical part */}
+          <MechanicalPart />
 
-        {/* Controls */}
-        <OrbitControls
-          ref={controlsRef}
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          maxPolarAngle={Math.PI}
-          minDistance={2}
-          maxDistance={20}
-        />
-      </Canvas>
+          {/* Controls */}
+          <OrbitControls
+            ref={controlsRef}
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            maxPolarAngle={Math.PI}
+            minDistance={2}
+            maxDistance={20}
+          />
+        </Canvas>
+      )}
 
       {/* Info panel */}
       <div className="absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-gray-600">
