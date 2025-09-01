@@ -85,9 +85,9 @@ export function StepViewer({ file, blobUrl, fileName = 'model.step', height = 40
 
         // 3) Basis params + callbacks
         const params = {
-          backgroundColor: new window.OV.RGBAColor(245, 245, 245, 255),
+          backgroundColor: window.OV.RGBAColor ? new window.OV.RGBAColor(245, 245, 245, 255) : undefined,
           edgeSettings: { showEdges: true },
-          camera: { projection: window.OV.CameraProjection.Perspective },
+          camera: window.OV.CameraProjection?.Perspective ? { projection: window.OV.CameraProjection.Perspective } : undefined,
           onModelLoaded: () => {
             if (!mounted) return;
             console.log('[O3DV] Model loaded');
