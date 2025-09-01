@@ -238,27 +238,51 @@ export function LineItemsTable() {
     }
   };
 
-  const handleDemoStepAnalysis = async () => {
-    // Create a demo line item
-    const demoItem: LineItem = {
-      id: `demo_${Date.now()}`,
-      description: 'Demo STEP Analysis',
-      drawingNumber: 'DEMO-001',
-      behandeling: '',
-      lengte: null,
-      breedte: null,
-      hoogte: null,
-      gewichtKg: null,
-      price: null,
-      excelSheet: 'Sublimotion' as SheetType,
-      material: 'steel',
-      fileName: 'demo.step'
-    };
+  // Copy material and treatment from first row to all rows
+  const handleCopyFromFirstRow = () => {
+    if (!currentDraft || currentDraft.lineItems.length === 0) return;
     
-    addLineItem(demoItem);
+    const firstItem = currentDraft.lineItems[0];
+    const material = firstItem.material;
+    const excelSheet = firstItem.excelSheet;
     
-    // Analyze the demo STEP file
-    await analyzeStepFile(demoItem.id, DEMO_STEP_URL);
+    currentDraft.lineItems.forEach((item, index) => {
+      if (index > 0) { // Skip first row
+        updateLineItem(item.id, {
+          material,
+          excelSheet
+        });
+      }
+    });
+  };
+
+  // Bulk fill all STEP files that aren't auto-filled
+  const handleBulkFillStepFiles = async () => {
+    if (!currentDraft) return;
+    
+    const stepItemsToFill = currentDraft.lineItems.filter(item => {
+      if (!item.fileName || !isStepFile(item.fileName)) return false;
+      if (item.stepAnalysisResult?.autoFilled) return false;
+      if (hasAllDimensionsFilled(item)) return false;
+      
+      const attachment = currentDraft.attachments.find(att => att.id === item.attachmentId);
+      return attachment && attachment.url;
+    });
+    
+    for (const item of stepItemsToFill) {
+      const attachment = currentDraft.attachments.find(att => att.id === item.attachmentId);
+      if (attachment?.url) {
+        await analyzeStepFile(item.id, attachment.url);
+      }
+    }
+  };
+
+  // Check if all dimensions are filled
+  const hasAllDimensionsFilled = (item: LineItem) => {
+    return !!(item.lengte && item.lengte > 0 &&
+              item.breedte && item.breedte > 0 &&
+              item.hoogte && item.hoogte > 0 &&
+              item.gewichtKg && item.gewichtKg > 0);
   };
 
   const handleTestCalculation = async () => {
@@ -393,9 +417,13 @@ export function LineItemsTable() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Nieuwe Offerte
           </Button>
-          <Button onClick={handleDemoStepAnalysis} variant="outline" className="border-accent/20 hover:bg-accent/5 hover:border-accent/40 transition-all">
+          <Button onClick={handleCopyFromFirstRow} variant="outline" className="border-accent/20 hover:bg-accent/5 hover:border-accent/40 transition-all">
+            <Copy className="mr-2 h-4 w-4" />
+            Kopieer materiaal/behandeling
+          </Button>
+          <Button onClick={handleBulkFillStepFiles} variant="outline" className="border-accent/20 hover:bg-accent/5 hover:border-accent/40 transition-all">
             <Upload className="mr-2 h-4 w-4" />
-            Test met demo STEP
+            Vul alle bestanden
           </Button>
           <Button onClick={handleAddEmptyRow} className="bg-gradient-primary hover:shadow-lg hover:scale-105 transition-all">
             <Plus className="mr-2 h-4 w-4" />
@@ -488,23 +516,23 @@ export function LineItemsTable() {
                                        <Upload className="h-3 w-3 mr-1" />
                                        Vul
                                      </Button>
-                                   )}
-                                   {stepAnalysisErrors[item.id] && !stepAnalyzing[item.id] && (
-                                     <Button
-                                       variant="ghost" 
-                                       size="sm"
-                                       onClick={() => handleRetryStepAnalysis(item.id)}
-                                       className="h-4 px-1 text-xs text-destructive hover:text-destructive"
-                                       title="Opnieuw analyseren"
-                                     >
-                                       <RotateCcw className="h-3 w-3 mr-1" />
-                                       Retry
-                                     </Button>
-                                   )}
+                                )}
+                                    {stepAnalysisErrors[item.id] && !stepAnalyzing[item.id] && !hasAllDimensionsFilled(item) && (
+                                      <Button
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => handleRetryStepAnalysis(item.id)}
+                                        className="h-4 px-1 text-xs text-destructive hover:text-destructive"
+                                        title="Opnieuw analyseren"
+                                      >
+                                        <RotateCcw className="h-3 w-3 mr-1" />
+                                        Retry
+                                      </Button>
+                                    )}
                                 </>
                               )}
                             </div>
-                            {stepAnalysisErrors[item.id] && (
+                            {stepAnalysisErrors[item.id] && !hasAllDimensionsFilled(item) && (
                               <div className="text-xs text-destructive max-w-[120px]">
                                 {stepAnalysisErrors[item.id]}
                               </div>
@@ -648,18 +676,6 @@ export function LineItemsTable() {
               <Button variant="outline" size="sm" onClick={handleBulkCalculation}>
                 <Calculator className="mr-2 h-4 w-4" />
                 Reken alle regels
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleTestCalculation} disabled={excelLoading['test']}>
-                {excelLoading['test'] ? (
-                  <div className="w-4 h-4 border border-primary border-t-transparent rounded-full animate-spin mr-2" />
-                ) : (
-                  <Calculator className="mr-2 h-4 w-4" />
-                )}
-                Test Excel (L=2000, B=500, H=500, W=700)
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDemoStepAnalysis} className="text-blue-600 border-blue-200 hover:bg-blue-50">
-                <Upload className="mr-2 h-4 w-4" />
-                Demo STEP-analyse
               </Button>
             </div>
             
