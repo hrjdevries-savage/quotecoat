@@ -1,5 +1,6 @@
 const DEFAULT_BASE = "https://step-analyzer.onrender.com";
 const ANALYZER_BASE_URL = import.meta.env.VITE_ANALYZER_BASE_URL || DEFAULT_BASE;
+const ANALYZE_PATH = "/analyze";
 const MATERIAL_DEFAULT = "steel";
 
 export interface StepAnalysisResult {
@@ -47,7 +48,7 @@ export async function analyzeStepByUrl(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
       
-      const res = await fetch(`${ANALYZER_BASE_URL}/analyze-url`, {
+      const res = await fetch(`${ANALYZER_BASE_URL}${ANALYZE_PATH}`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json", 
