@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/useQuoteStore';
 import { Attachment, LineItem, QuoteDraft } from '@/types';
-import { isStepFile, analyzeStepByUrl } from '@/services/StepAnalyzerService';
+import { isStepFile, analyzeStepByFile } from '@/services/StepAnalyzerService';
 
 export function EmailUpload() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -321,10 +321,10 @@ export function EmailUpload() {
       for (const lineItem of lineItems) {
         if (lineItem.fileName && isStepFile(lineItem.fileName)) {
           const attachment = attachments.find(a => a.id === lineItem.attachmentId);
-          if (attachment?.blobUrl) {
+          if (attachment?.file) {
             try {
               console.log('🔬 Auto-analyzing STEP file:', lineItem.fileName);
-              const result = await analyzeStepByUrl(attachment.blobUrl, 'steel');
+              const result = await analyzeStepByFile(attachment.file, 'steel');
               
               // Update the line item with analysis results
               const updatedLineItem = {

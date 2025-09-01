@@ -13,7 +13,7 @@ import { formatFileSize } from '@/utils/helpers';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ExcelDebugPanel } from './ExcelDebugPanel';
 import { calcL17, type SheetType, testCalculation } from '@/lib/excelCalc';
-import { analyzeStepByUrl, isStepFile, parseNumberLoose, formatNumberLocale, DEMO_STEP_URL, MATERIALS, type StepAnalysisResult } from '@/services/StepAnalyzerService';
+import { analyzeStepByUrl, analyzeStepByFile, ensureFile, isStepFile, parseNumberLoose, formatNumberLocale, DEMO_STEP_URL, MATERIALS, type StepAnalysisResult } from '@/services/StepAnalyzerService';
 export function LineItemsTable() {
   const {
     currentDraft,
@@ -148,7 +148,7 @@ export function LineItemsTable() {
     updateLineItem(itemId, { density });
   };
 
-  const analyzeStepFile = async (itemId: string, fileUrl: string) => {
+  const analyzeStepFile = async (itemId: string, fileOrUrl: string | File) => {
     const item = currentDraft?.lineItems.find(item => item.id === itemId);
     if (!item) return;
 
@@ -157,11 +157,26 @@ export function LineItemsTable() {
 
     try {
       console.log('🔬 Starting STEP analysis for:', item.fileName);
-      const result: StepAnalysisResult = await analyzeStepByUrl(
-        fileUrl, 
-        item.material || 'steel',
-        item.density
-      );
+      let result: StepAnalysisResult;
+
+      if (typeof fileOrUrl === 'string') {
+        // It's a URL (Supabase public URL or external URL)
+        console.log('📡 Analyzing via URL:', fileOrUrl);
+        result = await analyzeStepByUrl(
+          fileOrUrl, 
+          item.material || 'steel',
+          item.density
+        );
+      } else {
+        // It's a File object (local upload or blob)
+        console.log('📁 Analyzing via file upload');
+        const file = ensureFile(fileOrUrl, item.fileName || 'step-file.stp');
+        result = await analyzeStepByFile(
+          file, 
+          item.material || 'steel',
+          item.density
+        );
+      }
 
       console.log('✅ STEP analysis result:', result);
 
@@ -185,9 +200,10 @@ export function LineItemsTable() {
 
     } catch (error) {
       console.error('❌ STEP analysis failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
       setStepAnalysisErrors(prev => ({
         ...prev,
-        [itemId]: 'Analyseren van STEP is niet gelukt. Probeer opnieuw of vul L, B, H en Gewicht handmatig in.'
+        [itemId]: `Analyseren van STEP is niet gelukt: ${errorMessage}. Probeer opnieuw of vul L, B, H en Gewicht handmatig in.`
       }));
     } finally {
       setStepAnalyzing(prev => ({ ...prev, [itemId]: false }));
