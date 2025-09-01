@@ -10,6 +10,8 @@ export interface StepAnalysisResult {
   W: number;
   solids: number;
   volume_m3: number;
+  warnings?: string[];
+  isWarning?: boolean;
 }
 
 export interface StepAnalysisResponse {
@@ -19,6 +21,7 @@ export interface StepAnalysisResponse {
   weight_kg: number;
   solids?: number;
   volume_m3?: number;
+  warnings?: string[];
 }
 
 function round3(n: number): number {
@@ -61,6 +64,37 @@ export async function analyzeStepByUrl(
       
       clearTimeout(timeoutId);
       
+      const responseData: StepAnalysisResponse = await res.json();
+      
+      // Handle soft warnings (422) but with valid data
+      if (res.status === 422) {
+        console.log('⚠️ STEP analyzer returned warning (422) but processing data');
+        
+        // Validate response has required numeric fields
+        const requiredFields = ["length_mm", "width_mm", "height_mm", "weight_kg"];
+        const hasValidFields = requiredFields.every(field => 
+          typeof responseData[field] === "number" && !isNaN(responseData[field])
+        );
+        
+        if (hasValidFields) {
+          // Continue processing with warning flag
+          const dims = [responseData.length_mm, responseData.width_mm, responseData.height_mm]
+            .map(Number)
+            .sort((a, b) => b - a);
+          
+          return {
+            L: round3(dims[0]),
+            B: round3(dims[1]), 
+            H: round3(dims[2]),
+            W: round4(Number(responseData.weight_kg)),
+            solids: Number(responseData.solids ?? 0),
+            volume_m3: Number(responseData.volume_m3 ?? 0),
+            warnings: responseData.warnings || ['Units controleren?'],
+            isWarning: true
+          };
+        }
+      }
+      
       if (!res.ok) {
         let errorMessage = `Analyzer returned ${res.status}`;
         try {
@@ -78,12 +112,10 @@ export async function analyzeStepByUrl(
         throw new Error(errorMessage);
       }
       
-      const j: StepAnalysisResponse = await res.json();
-      
       // Validate response has required numeric fields
       const requiredFields = ["length_mm", "width_mm", "height_mm", "weight_kg"];
       const hasValidFields = requiredFields.every(field => 
-        typeof j[field] === "number" && !isNaN(j[field])
+        typeof responseData[field] === "number" && !isNaN(responseData[field])
       );
       
       if (!hasValidFields) {
@@ -91,7 +123,7 @@ export async function analyzeStepByUrl(
       }
       
       // Sort dimensions L >= B >= H for consistency
-      const dims = [j.length_mm, j.width_mm, j.height_mm]
+      const dims = [responseData.length_mm, responseData.width_mm, responseData.height_mm]
         .map(Number)
         .sort((a, b) => b - a);
       
@@ -99,9 +131,11 @@ export async function analyzeStepByUrl(
         L: round3(dims[0]),
         B: round3(dims[1]), 
         H: round3(dims[2]),
-        W: round4(Number(j.weight_kg)),
-        solids: Number(j.solids ?? 0),
-        volume_m3: Number(j.volume_m3 ?? 0)
+        W: round4(Number(responseData.weight_kg)),
+        solids: Number(responseData.solids ?? 0),
+        volume_m3: Number(responseData.volume_m3 ?? 0),
+        warnings: responseData.warnings,
+        isWarning: false
       };
       
     } catch (error) {
@@ -157,6 +191,37 @@ export async function analyzeStepByFile(
       
       clearTimeout(timeoutId);
       
+      const responseData2: StepAnalysisResponse = await res.json();
+      
+      // Handle soft warnings (422) but with valid data
+      if (res.status === 422) {
+        console.log('⚠️ STEP analyzer returned warning (422) but processing data');
+        
+        // Validate response has required numeric fields
+        const requiredFields = ["length_mm", "width_mm", "height_mm", "weight_kg"];
+        const hasValidFields = requiredFields.every(field => 
+          typeof responseData2[field] === "number" && !isNaN(responseData2[field])
+        );
+        
+        if (hasValidFields) {
+          // Continue processing with warning flag
+          const dims = [responseData2.length_mm, responseData2.width_mm, responseData2.height_mm]
+            .map(Number)
+            .sort((a, b) => b - a);
+          
+          return {
+            L: round3(dims[0]),
+            B: round3(dims[1]), 
+            H: round3(dims[2]),
+            W: round4(Number(responseData2.weight_kg)),
+            solids: Number(responseData2.solids ?? 0),
+            volume_m3: Number(responseData2.volume_m3 ?? 0),
+            warnings: responseData2.warnings || ['Units controleren?'],
+            isWarning: true
+          };
+        }
+      }
+      
       if (!res.ok) {
         let errorMessage = `Analyzer returned ${res.status}`;
         try {
@@ -178,12 +243,10 @@ export async function analyzeStepByFile(
         throw new Error(errorMessage);
       }
       
-      const j: StepAnalysisResponse = await res.json();
-      
       // Validate response has required numeric fields
       const requiredFields = ["length_mm", "width_mm", "height_mm", "weight_kg"];
       const hasValidFields = requiredFields.every(field => 
-        typeof j[field] === "number" && !isNaN(j[field])
+        typeof responseData2[field] === "number" && !isNaN(responseData2[field])
       );
       
       if (!hasValidFields) {
@@ -191,7 +254,7 @@ export async function analyzeStepByFile(
       }
       
       // Sort dimensions L >= B >= H for consistency
-      const dims = [j.length_mm, j.width_mm, j.height_mm]
+      const dims = [responseData2.length_mm, responseData2.width_mm, responseData2.height_mm]
         .map(Number)
         .sort((a, b) => b - a);
       
@@ -199,9 +262,11 @@ export async function analyzeStepByFile(
         L: round3(dims[0]),
         B: round3(dims[1]), 
         H: round3(dims[2]),
-        W: round4(Number(j.weight_kg)),
-        solids: Number(j.solids ?? 0),
-        volume_m3: Number(j.volume_m3 ?? 0)
+        W: round4(Number(responseData2.weight_kg)),
+        solids: Number(responseData2.solids ?? 0),
+        volume_m3: Number(responseData2.volume_m3 ?? 0),
+        warnings: responseData2.warnings,
+        isWarning: false
       };
       
     } catch (error) {

@@ -28,6 +28,7 @@ export type LineItem = {
     solids: number;
     volume_m3: number;
     autoFilled: boolean;
+    isWarning?: boolean;
   };
 };
 

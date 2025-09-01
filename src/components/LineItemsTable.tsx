@@ -28,6 +28,7 @@ export function LineItemsTable() {
   const [excelLoading, setExcelLoading] = useState<Record<string, boolean>>({});
   const [stepAnalyzing, setStepAnalyzing] = useState<Record<string, boolean>>({});
   const [stepAnalysisErrors, setStepAnalysisErrors] = useState<Record<string, string>>({});
+  const [stepAnalysisWarnings, setStepAnalysisWarnings] = useState<Record<string, string[]>>({});
   if (!currentDraft) return null;
   const handleAddEmptyRow = () => {
     const newItem: LineItem = {
@@ -154,6 +155,7 @@ export function LineItemsTable() {
 
     setStepAnalyzing(prev => ({ ...prev, [itemId]: true }));
     setStepAnalysisErrors(prev => ({ ...prev, [itemId]: '' }));
+    setStepAnalysisWarnings(prev => ({ ...prev, [itemId]: [] }));
 
     try {
       console.log('🔬 Starting STEP analysis for:', item.fileName);
@@ -189,9 +191,21 @@ export function LineItemsTable() {
         stepAnalysisResult: {
           solids: result.solids,
           volume_m3: result.volume_m3,
-          autoFilled: true
+          autoFilled: true,
+          isWarning: result.isWarning
         }
       });
+
+      // Handle warnings
+      if (result.warnings && result.warnings.length > 0) {
+        setStepAnalysisWarnings(prev => ({
+          ...prev,
+          [itemId]: result.warnings!
+        }));
+        
+        // Log warnings for analytics
+        console.log('⚠️ STEP analysis warnings:', result.warnings);
+      }
 
       // Auto-trigger Excel calculation after successful analysis
       setTimeout(() => {
@@ -205,6 +219,7 @@ export function LineItemsTable() {
         ...prev,
         [itemId]: `Analyseren van STEP is niet gelukt: ${errorMessage}. Probeer opnieuw of vul L, B, H en Gewicht handmatig in.`
       }));
+      setStepAnalysisWarnings(prev => ({ ...prev, [itemId]: [] }));
     } finally {
       setStepAnalyzing(prev => ({ ...prev, [itemId]: false }));
     }
@@ -438,9 +453,29 @@ export function LineItemsTable() {
                                     </div>
                                   )}
                                   {item.stepAnalysisResult?.autoFilled && !stepAnalyzing[item.id] && (
-                                    <Badge variant="outline" className="text-xs h-4 px-1 text-primary border-primary">
-                                      Auto-ingevuld
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs h-4 px-1 ${
+                                        item.stepAnalysisResult?.isWarning 
+                                          ? 'text-orange-600 border-orange-300 bg-orange-50' 
+                                          : 'text-primary border-primary'
+                                      }`}
+                                    >
+                                      {item.stepAnalysisResult?.isWarning ? 'Auto-ingevuld ⚠️' : 'Auto-ingevuld'}
                                     </Badge>
+                                  )}
+                                  {stepAnalysisWarnings[item.id] && stepAnalysisWarnings[item.id].length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {stepAnalysisWarnings[item.id].map((warning, idx) => (
+                                        <Badge 
+                                          key={idx} 
+                                          variant="outline" 
+                                          className="text-xs h-4 px-1 text-orange-600 border-orange-300 bg-orange-50"
+                                        >
+                                          ⚠️ {warning}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   )}
                                    {!stepAnalyzing[item.id] && (
                                      <Button
