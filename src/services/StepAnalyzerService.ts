@@ -1,4 +1,5 @@
-const ANALYZER_BASE_URL = "https://step-analyzer.onrender.com";
+const DEFAULT_BASE = "https://step-analyzer.onrender.com";
+const ANALYZER_BASE_URL = import.meta.env.VITE_ANALYZER_BASE_URL || DEFAULT_BASE;
 const MATERIAL_DEFAULT = "steel";
 
 export interface StepAnalysisResult {

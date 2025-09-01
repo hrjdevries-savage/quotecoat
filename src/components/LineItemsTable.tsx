@@ -362,6 +362,10 @@ export function LineItemsTable() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Nieuwe Offerte
           </Button>
+          <Button onClick={handleDemoStepAnalysis} variant="outline" className="border-accent/20 hover:bg-accent/5 hover:border-accent/40 transition-all">
+            <Upload className="mr-2 h-4 w-4" />
+            Test met demo STEP
+          </Button>
           <Button onClick={handleAddEmptyRow} className="bg-gradient-primary hover:shadow-lg hover:scale-105 transition-all">
             <Plus className="mr-2 h-4 w-4" />
             Regel toevoegen
@@ -422,18 +426,30 @@ export function LineItemsTable() {
                                       Auto-ingevuld
                                     </Badge>
                                   )}
-                                  {stepAnalysisErrors[item.id] && !stepAnalyzing[item.id] && (
-                                    <Button
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleRetryStepAnalysis(item.id)}
-                                      className="h-4 px-1 text-xs text-destructive hover:text-destructive"
-                                      title="Opnieuw analyseren"
-                                    >
-                                      <RotateCcw className="h-3 w-3 mr-1" />
-                                      Retry
-                                    </Button>
-                                  )}
+                                   {!stepAnalyzing[item.id] && (
+                                     <Button
+                                       variant="ghost" 
+                                       size="sm"
+                                       onClick={() => handleRetryStepAnalysis(item.id)}
+                                       className="h-4 px-1 text-xs text-primary hover:text-primary"
+                                       title="Vul vanuit STEP"
+                                     >
+                                       <Upload className="h-3 w-3 mr-1" />
+                                       Vul
+                                     </Button>
+                                   )}
+                                   {stepAnalysisErrors[item.id] && !stepAnalyzing[item.id] && (
+                                     <Button
+                                       variant="ghost" 
+                                       size="sm"
+                                       onClick={() => handleRetryStepAnalysis(item.id)}
+                                       className="h-4 px-1 text-xs text-destructive hover:text-destructive"
+                                       title="Opnieuw analyseren"
+                                     >
+                                       <RotateCcw className="h-3 w-3 mr-1" />
+                                       Retry
+                                     </Button>
+                                   )}
                                 </>
                               )}
                             </div>
