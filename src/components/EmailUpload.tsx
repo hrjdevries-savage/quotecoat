@@ -237,12 +237,11 @@ export function EmailUpload() {
 
             // Create line item for each attachment
             const lineItem: LineItem = {
-              id: `item_${Date.now()}_${j}`,
-              attachmentId: attachment.id,
-              fileName: attachment.fileName,
-              description: attachment.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
-              drawingNumber: '',
-              behandeling: '',
+               id: `item_${Date.now()}_${j}`,
+               attachmentId: attachment.id,
+               fileName: attachment.fileName,
+               description: attachment.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
+               drawingNumber: '',
               lengte: null,
               breedte: null,
               hoogte: null,
@@ -266,13 +265,12 @@ export function EmailUpload() {
           attachments.push(attachment);
 
           // Create corresponding line item
-          const lineItem: LineItem = {
-            id: `item_${Date.now()}_${i}`,
-            attachmentId: attachment.id,
-            fileName: file.name,
-            description: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-            drawingNumber: '',
-            behandeling: '',
+           const lineItem: LineItem = {
+             id: `item_${Date.now()}_${i}`,
+             attachmentId: attachment.id,
+             fileName: file.name,
+             description: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+             drawingNumber: '',
             lengte: null,
             breedte: null,
             hoogte: null,

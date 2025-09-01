@@ -91,7 +91,7 @@ export const useQuoteActions = () => {
           file_name: item.fileName || null,
           description: item.description,
           drawing_number: item.drawingNumber,
-          behandeling: item.behandeling,
+          material: item.material,
           lengte: item.lengte,
           breedte: item.breedte,
           hoogte: item.hoogte,
@@ -373,7 +373,7 @@ export const useQuoteActions = () => {
           fileName: item.file_name || undefined,
           description: item.description,
           drawingNumber: item.drawing_number || '',
-          behandeling: item.behandeling || '',
+          behandeling: '', // No longer used but kept for DB compatibility
           lengte: item.lengte ? Number(item.lengte) : null,
           breedte: item.breedte ? Number(item.breedte) : null,
           hoogte: item.hoogte ? Number(item.hoogte) : null,
