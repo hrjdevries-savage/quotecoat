@@ -13,8 +13,6 @@ import { formatFileSize } from '@/utils/helpers';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ExcelDebugPanel } from './ExcelDebugPanel';
 import { calcL17, type SheetType, testCalculation } from '@/lib/excelCalc';
-import { StepAnalyzerService } from '@/services/StepAnalyzerService';
-import { useToast } from '@/hooks/use-toast';
 export function LineItemsTable() {
   const {
     currentDraft,
@@ -24,81 +22,16 @@ export function LineItemsTable() {
     getTotalPrice,
     clearDraft
   } = useQuoteStore();
-  const { toast } = useToast();
   const [showPreviewId, setShowPreviewId] = useState<string | null>(null);
   const [excelResults, setExcelResults] = useState<Record<string, { sheet: SheetType; result: number | null; error?: string }>>({});
   const [excelLoading, setExcelLoading] = useState<Record<string, boolean>>({});
-  const [stepAnalyzing, setStepAnalyzing] = useState<Record<string, boolean>>({});
-  
-  // Auto-analyze STEP files when line items are added/updated
-  const analyzeStepFile = async (lineItem: LineItem) => {
-    const attachment = currentDraft?.attachments.find(att => att.id === lineItem.attachmentId);
-    if (!attachment || !StepAnalyzerService.isStepFile(attachment.fileName)) {
-      return;
-    }
-
-    if (!attachment.blobUrl && !attachment.file) {
-      console.warn('No file data available for STEP analysis');
-      return;
-    }
-
-    setStepAnalyzing(prev => ({ ...prev, [lineItem.id]: true }));
-    
-    try {
-      // Create a temporary public URL for the STEP file
-      let fileUrl = attachment.blobUrl;
-      
-      // If we don't have blobUrl but have file, create one
-      if (!fileUrl && attachment.file) {
-        fileUrl = URL.createObjectURL(attachment.file);
-      }
-      
-      if (!fileUrl) {
-        throw new Error('No file URL available for STEP analysis');
-      }
-      
-      const material = lineItem.material || 'Steel';
-      const result = await StepAnalyzerService.analyzeStepFile({
-        file_url: fileUrl,
-        material: material
-      });
-      
-      // Update dimensions and weight from STEP analysis
-      updateLineItem(lineItem.id, {
-        lengte: Math.round(result.length_mm),
-        breedte: Math.round(result.width_mm), 
-        hoogte: Math.round(result.height_mm),
-        gewichtKg: Math.round(result.weight_kg * 100) / 100 // Round to 2 decimals
-      });
-      
-      toast({
-        title: "STEP analyse voltooid",
-        description: `Afmetingen automatisch ingevuld: ${Math.round(result.length_mm)}×${Math.round(result.width_mm)}×${Math.round(result.height_mm)}mm, ${Math.round(result.weight_kg * 100) / 100}kg`,
-      });
-      
-      // Auto-trigger Excel calculation after STEP analysis
-      setTimeout(() => {
-        handleExcelCalculation(lineItem.id);
-      }, 500);
-      
-    } catch (error) {
-      console.error('STEP analysis failed:', error);
-      toast({
-        title: "STEP analyse mislukt",
-        description: error instanceof Error ? error.message : 'Onbekende fout',
-        variant: "destructive",
-      });
-    } finally {
-      setStepAnalyzing(prev => ({ ...prev, [lineItem.id]: false }));
-    }
-  };
-
   if (!currentDraft) return null;
   const handleAddEmptyRow = () => {
-     const newItem: LineItem = {
-       id: `item_${Date.now()}`,
-       description: '',
-       drawingNumber: '',
+    const newItem: LineItem = {
+      id: `item_${Date.now()}`,
+      description: '',
+      drawingNumber: '',
+      behandeling: '',
       lengte: null,
       breedte: null,
       hoogte: null,
@@ -349,13 +282,12 @@ export function LineItemsTable() {
                 <th className="text-left p-3 font-semibold text-xs w-12">Preview</th>
                 <th className="text-left p-3 font-semibold text-xs min-w-[140px]">Bestand</th>
                 <th className="text-left p-3 font-semibold text-xs min-w-[160px]">Omschrijving</th>
-                 <th className="text-left p-3 font-semibold text-xs w-20">Tekeningnr.</th>
-                 <th className="text-left p-3 font-semibold text-xs w-20">L (mm)</th>
-                 <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
-                 <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
-                 <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
-                 <th className="text-left p-2 font-medium text-xs w-20">Materiaal</th>
-                 <th className="text-left p-2 font-medium text-xs w-28">Excel Sheet</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">Tekeningnr.</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">L (mm)</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">B (mm)</th>
+                <th className="text-left p-3 font-semibold text-xs w-20">H (mm)</th>
+                <th className="text-left p-2 font-medium text-xs w-20">Gewicht</th>
+                <th className="text-left p-2 font-medium text-xs w-28">Excel Sheet</th>
                 <th className="text-left p-2 font-medium text-xs min-w-[140px]">Prijs (Excel L17)</th>
                 <th className="text-left p-2 font-medium text-xs w-12">Acties</th>
               </tr>
@@ -409,45 +341,11 @@ export function LineItemsTable() {
                         <Input type="number" min="0" step="0.1" value={item.hoogte || ''} onChange={e => handleDimensionChange(item.id, 'hoogte', e.target.value)} placeholder="0" className="h-8 text-xs" />
                       </td>
                       
-                       <td className="p-2">
-                         <div className="flex gap-1 items-center">
-                           <Input type="number" min="0" step="0.01" value={item.gewichtKg || ''} onChange={e => handleDimensionChange(item.id, 'gewichtKg', e.target.value)} placeholder="0" className="h-8 text-xs flex-1" />
-                           {StepAnalyzerService.isStepFile(item.fileName || '') && (
-                             <Button 
-                               variant="outline" 
-                               size="sm" 
-                               onClick={() => analyzeStepFile(item)}
-                               disabled={stepAnalyzing[item.id]}
-                               className="h-8 w-8 p-0" 
-                               title="STEP analyseren"
-                             >
-                               {stepAnalyzing[item.id] ? (
-                                 <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
-                               ) : (
-                                 '🔍'
-                               )}
-                             </Button>
-                           )}
-                         </div>
-                       </td>
-                       
-                       <td className="p-2">
-                         <Select value={item.material || 'Steel'} onValueChange={(value: string) => updateLineItem(item.id, { material: value as any })}>
-                           <SelectTrigger className="h-8 text-xs">
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="Steel">Steel</SelectItem>
-                             <SelectItem value="Aluminum">Aluminum</SelectItem>
-                             <SelectItem value="Stainless">Stainless</SelectItem>
-                             <SelectItem value="Brass">Brass</SelectItem>
-                             <SelectItem value="Copper">Copper</SelectItem>
-                             <SelectItem value="Plastic">Plastic</SelectItem>
-                           </SelectContent>
-                         </Select>
-                       </td>
-                       
-                       <td className="p-2">
+                      <td className="p-2">
+                        <Input type="number" min="0" step="0.01" value={item.gewichtKg || ''} onChange={e => handleDimensionChange(item.id, 'gewichtKg', e.target.value)} placeholder="0" className="h-8 text-xs" />
+                      </td>
+                      
+                      <td className="p-2">
                         <Select value={item.excelSheet || 'Sublimotion'} onValueChange={(value: SheetType) => handleSheetChange(item.id, value)}>
                           <SelectTrigger className="h-8 text-xs">
                             <SelectValue />
@@ -499,12 +397,12 @@ export function LineItemsTable() {
                       </td>
                     </tr>
                     
-                     {/* Debug Panel Row */}
-                     {debugInfo[item.id] && <tr>
-                         <td colSpan={12} className="p-2">
-                           <ExcelDebugPanel debugInfo={debugInfo[item.id]} lineItemId={item.id} />
-                         </td>
-                       </tr>}
+                    {/* Debug Panel Row */}
+                    {debugInfo[item.id] && <tr>
+                        <td colSpan={11} className="p-2">
+                          <ExcelDebugPanel debugInfo={debugInfo[item.id]} lineItemId={item.id} />
+                        </td>
+                      </tr>}
                   </React.Fragment>;
             })}
             </tbody>

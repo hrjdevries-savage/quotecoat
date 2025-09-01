@@ -108,7 +108,7 @@ export const PdfTemplate = forwardRef<HTMLDivElement, PdfTemplateProps>(
                       )}
                     </div>
                   </td>
-                  <td className="border border-black p-2">-</td>
+                  <td className="border border-black p-2">{item.behandeling || '-'}</td>
                   <td className="border border-black p-2 text-center">1</td>
                   <td className="border border-black p-2 text-right">{formatPrice(item.price)}</td>
                   <td className="border border-black p-2 text-right">{formatPrice(item.price)}</td>
