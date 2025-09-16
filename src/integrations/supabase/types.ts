@@ -504,9 +504,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_org_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_instruction_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_claims: {
+        Args: { uid: string }
+        Returns: Json
       }
     }
     Enums: {
