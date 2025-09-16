@@ -29,10 +29,14 @@ const App = () => (
           <Navbar />
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             
             {/* Protected Routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
             <Route path="/home" element={
               <ProtectedRoute>
                 <Home />
