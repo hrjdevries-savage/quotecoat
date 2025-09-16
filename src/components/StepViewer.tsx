@@ -56,17 +56,6 @@ export function StepViewer({ file, blobUrl, fileName = 'model.step', height = 40
     return (name || 'model') + '.stp';
   }
 
-  // Helper: check if O3DV is fully loaded
-  function isO3DVReady(): boolean {
-    return !!(
-      window.OV &&
-      window.OV.Init3DViewerFromFileList &&
-      window.OV.Init3DViewerFromUrlList &&
-      window.OV.RGBAColor &&
-      window.OV.CameraProjection
-    );
-  }
-
   useEffect(() => {
     let mounted = true;
 
@@ -76,17 +65,9 @@ export function StepViewer({ file, blobUrl, fileName = 'model.step', height = 40
       setFailed(false);
       setDebug(null);
 
-      // 1) Wait for O3DV to be fully ready
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      while (attempts < maxAttempts && !isO3DVReady()) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-
-      if (!isO3DVReady()) {
-        setDebug('O3DV niet volledig geladen na 1 seconde');
+      // 1) OV aanwezig?
+      if (!window.OV) {
+        setDebug('window.OV ontbreekt (script niet geladen?)');
         setFailed(true);
         setLoading(false);
         return;
