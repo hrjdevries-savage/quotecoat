@@ -22,6 +22,7 @@ export type Database = {
           email: string | null
           id: string
           logo_path: string | null
+          org_id: string
           phone: string | null
           updated_at: string
           website: string | null
@@ -33,6 +34,7 @@ export type Database = {
           email?: string | null
           id?: string
           logo_path?: string | null
+          org_id?: string
           phone?: string | null
           updated_at?: string
           website?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           email?: string | null
           id?: string
           logo_path?: string | null
+          org_id?: string
           phone?: string | null
           updated_at?: string
           website?: string | null
@@ -89,6 +92,7 @@ export type Database = {
         Row: {
           from_email: string | null
           id: string
+          org_id: string
           owner_id: string
           raw_provider_id: string | null
           received_at: string | null
@@ -97,6 +101,7 @@ export type Database = {
         Insert: {
           from_email?: string | null
           id?: string
+          org_id?: string
           owner_id: string
           raw_provider_id?: string | null
           received_at?: string | null
@@ -105,6 +110,7 @@ export type Database = {
         Update: {
           from_email?: string | null
           id?: string
+          org_id?: string
           owner_id?: string
           raw_provider_id?: string | null
           received_at?: string | null
@@ -118,6 +124,7 @@ export type Database = {
           created_at: string | null
           inbound_alias: string
           inbound_token: string
+          org_id: string
           owner_id: string
         }
         Insert: {
@@ -125,6 +132,7 @@ export type Database = {
           created_at?: string | null
           inbound_alias: string
           inbound_token: string
+          org_id?: string
           owner_id: string
         }
         Update: {
@@ -132,6 +140,7 @@ export type Database = {
           created_at?: string | null
           inbound_alias?: string
           inbound_token?: string
+          org_id?: string
           owner_id?: string
         }
         Relationships: []
@@ -143,6 +152,7 @@ export type Database = {
           height_cell: string
           id: string
           length_cell: string
+          org_id: string
           owner_id: string
           price_cell: string
           selected_sheet: string
@@ -158,6 +168,7 @@ export type Database = {
           height_cell: string
           id?: string
           length_cell: string
+          org_id?: string
           owner_id: string
           price_cell: string
           selected_sheet: string
@@ -173,6 +184,7 @@ export type Database = {
           height_cell?: string
           id?: string
           length_cell?: string
+          org_id?: string
           owner_id?: string
           price_cell?: string
           selected_sheet?: string
@@ -181,6 +193,27 @@ export type Database = {
           weight_cell?: string
           width_cell?: string
           workbook_hash?: string | null
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -294,6 +327,7 @@ export type Database = {
           client_reference: string | null
           created_at: string
           id: string
+          org_id: string
           owner_id: string
           pdf_file_path: string | null
           quote_number: string
@@ -312,6 +346,7 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
+          org_id?: string
           owner_id: string
           pdf_file_path?: string | null
           quote_number: string
@@ -330,6 +365,7 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
+          org_id?: string
           owner_id?: string
           pdf_file_path?: string | null
           quote_number?: string
@@ -386,6 +422,7 @@ export type Database = {
           description: string | null
           id: string
           instruction_number: string
+          org_id: string
           owner_id: string
           title: string
           updated_at: string
@@ -396,6 +433,7 @@ export type Database = {
           description?: string | null
           id?: string
           instruction_number: string
+          org_id?: string
           owner_id: string
           title: string
           updated_at?: string
@@ -406,6 +444,7 @@ export type Database = {
           description?: string | null
           id?: string
           instruction_number?: string
+          org_id?: string
           owner_id?: string
           title?: string
           updated_at?: string

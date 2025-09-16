@@ -34,10 +34,19 @@ export class ExcelPriceService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
+      // Get org_id from user metadata
+      const orgId = user.user_metadata?.org_id;
+      if (!orgId) {
+        console.log('No org_id found in user metadata');
+        return null;
+      }
+
+      console.log('Loading excel config for org_id:', orgId);
       const { data, error } = await supabase
         .from('excel_pricing_config')
         .select('*')
         .eq('owner_id', user.id)
+        .eq('org_id', orgId)
         .single();
 
       if (error || !data) return null;
@@ -458,11 +467,16 @@ export class ExcelPriceService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get org_id from user metadata
+      const orgId = user.user_metadata?.org_id;
+      if (!orgId) return;
+
       // Delete from database
       await supabase
         .from('excel_pricing_config')
         .delete()
-        .eq('owner_id', user.id);
+        .eq('owner_id', user.id)
+        .eq('org_id', orgId);
 
       // Delete from storage (if exists)
       if (this.cachedConfig?.storagePath) {

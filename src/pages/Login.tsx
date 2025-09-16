@@ -45,11 +45,26 @@ const Login = () => {
       }
 
       if (isSignUp) {
+        // Create organization first for new users
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .insert({ name: `Organisatie van ${email}` })
+          .select()
+          .single();
+
+        if (orgError) {
+          setError('Fout bij het aanmaken van organisatie: ' + orgError.message);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: redirectUrl
+            emailRedirectTo: redirectUrl,
+            data: {
+              org_id: orgData.id
+            }
           }
         });
 
