@@ -35,6 +35,14 @@ const Login = () => {
     try {
       const redirectUrl = `${window.location.origin}/home`;
 
+      // Development bypass for admin/admin
+      if (email === 'admin' && password === 'admin') {
+        // Set admin bypass flag and navigate
+        localStorage.setItem('admin-bypass', 'true');
+        navigate('/home');
+        return;
+      }
+
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email,

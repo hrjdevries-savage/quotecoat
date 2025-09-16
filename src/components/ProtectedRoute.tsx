@@ -10,6 +10,9 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
 
+  // Allow admin bypass for development
+  const isAdminBypass = localStorage.getItem('admin-bypass') === 'true';
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 flex items-center justify-center">
@@ -25,7 +28,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  if (!user) {
+  if (!user && !isAdminBypass) {
     return <Navigate to="/login" replace />;
   }
 
