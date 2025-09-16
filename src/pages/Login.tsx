@@ -37,6 +37,7 @@ const Login = () => {
 
       // Development bypass for admin/admin
       if (email === 'admin' && password === 'admin') {
+        console.log('Admin bypass activated');
         // Set admin bypass flag and navigate
         localStorage.setItem('admin-bypass', 'true');
         navigate('/home');
@@ -162,12 +163,12 @@ const Login = () => {
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="je@voorbeeld.nl"
+                  type={email === 'admin' ? 'text' : 'email'}
+                  placeholder={email === 'admin' ? 'admin (dev bypass)' : 'je@voorbeeld.nl'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
-                  required
+                  required={email !== 'admin'}
                 />
               </div>
             </div>

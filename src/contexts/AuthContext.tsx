@@ -45,6 +45,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
+    // Clear admin bypass flag
+    localStorage.removeItem('admin-bypass');
+    console.log('Admin bypass cleared');
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error signing out:', error);
