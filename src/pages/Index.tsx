@@ -3,15 +3,18 @@ import { LineItemsTable } from '@/components/LineItemsTable';
 import { CustomerInfo } from '@/components/CustomerInfo';
 import { PdfGenerator } from '@/components/PdfGenerator';
 import { useQuoteStore } from '@/store/useQuoteStore';
-import { Settings, HelpCircle, ArrowLeft, FileText, Upload } from 'lucide-react';
+import { Settings, HelpCircle, ArrowLeft, FileText, Upload, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const {
     currentDraft,
     clearDraft
   } = useQuoteStore();
+  
+  const { user } = useAuth();
 
   return (
     <div className="relative min-h-screen">
@@ -30,6 +33,18 @@ const Index = () => {
               <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
                 Upload your specifications, get instant quotes, and streamline your manufacturing workflow with our AI-powered platform.
               </p>
+              
+              {/* Login button for non-authenticated users */}
+              {!user && (
+                <div className="mt-8">
+                  <Link to="/login">
+                    <Button size="lg" className="text-lg px-8 py-3">
+                      <LogIn className="h-5 w-5 mr-2" />
+                      Inloggen om te beginnen
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
