@@ -14,45 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      company_settings: {
-        Row: {
-          address: string | null
-          company_name: string | null
-          created_at: string
-          email: string | null
-          id: string
-          logo_path: string | null
-          org_id: string
-          phone: string | null
-          updated_at: string
-          website: string | null
-        }
-        Insert: {
-          address?: string | null
-          company_name?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          logo_path?: string | null
-          org_id?: string
-          phone?: string | null
-          updated_at?: string
-          website?: string | null
-        }
-        Update: {
-          address?: string | null
-          company_name?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          logo_path?: string | null
-          org_id?: string
-          phone?: string | null
-          updated_at?: string
-          website?: string | null
-        }
-        Relationships: []
-      }
       email_attachments: {
         Row: {
           file_name: string | null
@@ -92,7 +53,6 @@ export type Database = {
         Row: {
           from_email: string | null
           id: string
-          org_id: string
           owner_id: string
           raw_provider_id: string | null
           received_at: string | null
@@ -101,7 +61,6 @@ export type Database = {
         Insert: {
           from_email?: string | null
           id?: string
-          org_id?: string
           owner_id: string
           raw_provider_id?: string | null
           received_at?: string | null
@@ -110,7 +69,6 @@ export type Database = {
         Update: {
           from_email?: string | null
           id?: string
-          org_id?: string
           owner_id?: string
           raw_provider_id?: string | null
           received_at?: string | null
@@ -124,7 +82,6 @@ export type Database = {
           created_at: string | null
           inbound_alias: string
           inbound_token: string
-          org_id: string
           owner_id: string
         }
         Insert: {
@@ -132,7 +89,6 @@ export type Database = {
           created_at?: string | null
           inbound_alias: string
           inbound_token: string
-          org_id?: string
           owner_id: string
         }
         Update: {
@@ -140,7 +96,6 @@ export type Database = {
           created_at?: string | null
           inbound_alias?: string
           inbound_token?: string
-          org_id?: string
           owner_id?: string
         }
         Relationships: []
@@ -152,7 +107,6 @@ export type Database = {
           height_cell: string
           id: string
           length_cell: string
-          org_id: string
           owner_id: string
           price_cell: string
           selected_sheet: string
@@ -168,7 +122,6 @@ export type Database = {
           height_cell: string
           id?: string
           length_cell: string
-          org_id?: string
           owner_id: string
           price_cell: string
           selected_sheet: string
@@ -184,7 +137,6 @@ export type Database = {
           height_cell?: string
           id?: string
           length_cell?: string
-          org_id?: string
           owner_id?: string
           price_cell?: string
           selected_sheet?: string
@@ -193,75 +145,6 @@ export type Database = {
           weight_cell?: string
           width_cell?: string
           workbook_hash?: string | null
-        }
-        Relationships: []
-      }
-      inbound_messages: {
-        Row: {
-          attachments: Json | null
-          detected_company: string | null
-          from_email: string | null
-          from_name: string | null
-          html_body: string | null
-          id: string
-          offer_id: string | null
-          org_id: string
-          received_at: string
-          status: string
-          subject: string | null
-          text_body: string | null
-          thread_id: string | null
-        }
-        Insert: {
-          attachments?: Json | null
-          detected_company?: string | null
-          from_email?: string | null
-          from_name?: string | null
-          html_body?: string | null
-          id?: string
-          offer_id?: string | null
-          org_id: string
-          received_at?: string
-          status?: string
-          subject?: string | null
-          text_body?: string | null
-          thread_id?: string | null
-        }
-        Update: {
-          attachments?: Json | null
-          detected_company?: string | null
-          from_email?: string | null
-          from_name?: string | null
-          html_body?: string | null
-          id?: string
-          offer_id?: string | null
-          org_id?: string
-          received_at?: string
-          status?: string
-          subject?: string | null
-          text_body?: string | null
-          thread_id?: string | null
-        }
-        Relationships: []
-      }
-      organizations: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -375,7 +258,6 @@ export type Database = {
           client_reference: string | null
           created_at: string
           id: string
-          org_id: string
           owner_id: string
           pdf_file_path: string | null
           quote_number: string
@@ -394,7 +276,6 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
-          org_id?: string
           owner_id: string
           pdf_file_path?: string | null
           quote_number: string
@@ -413,7 +294,6 @@ export type Database = {
           client_reference?: string | null
           created_at?: string
           id?: string
-          org_id?: string
           owner_id?: string
           pdf_file_path?: string | null
           quote_number?: string
@@ -425,97 +305,12 @@ export type Database = {
         }
         Relationships: []
       }
-      work_instruction_steps: {
-        Row: {
-          created_at: string
-          description: string
-          id: string
-          image_path: string | null
-          instruction_id: string
-          step_number: number
-          title: string | null
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          id?: string
-          image_path?: string | null
-          instruction_id: string
-          step_number: number
-          title?: string | null
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          id?: string
-          image_path?: string | null
-          instruction_id?: string
-          step_number?: number
-          title?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "work_instruction_steps_instruction_id_fkey"
-            columns: ["instruction_id"]
-            isOneToOne: false
-            referencedRelation: "work_instructions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      work_instructions: {
-        Row: {
-          created_at: string
-          department: string
-          description: string | null
-          id: string
-          instruction_number: string
-          org_id: string
-          owner_id: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          department: string
-          description?: string | null
-          id?: string
-          instruction_number: string
-          org_id?: string
-          owner_id: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          department?: string
-          description?: string | null
-          id?: string
-          instruction_number?: string
-          org_id?: string
-          owner_id?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      current_org_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_instruction_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_claims: {
-        Args: { uid: string }
-        Returns: Json
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

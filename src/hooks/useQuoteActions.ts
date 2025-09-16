@@ -3,23 +3,12 @@ import html2pdf from 'html2pdf.js';
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteDraft } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useApp } from '@/contexts/AppContext';
 
 export const useQuoteActions = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { orgId } = useApp();
 
   const saveQuoteToDatabase = async (quoteDraft: QuoteDraft, totalPrice: number, existingQuoteId?: string): Promise<string | null> => {
-    if (!orgId) {
-      toast({
-        title: "Fout",
-        description: "Geen organisatie ID beschikbaar",
-        variant: "destructive",
-      });
-      return null;
-    }
-
     try {
       setIsLoading(true);
 
@@ -32,13 +21,11 @@ export const useQuoteActions = () => {
           throw new Error('User not authenticated');
         }
 
-        console.log('Creating quote for org_id:', orgId);
         // Create new quote
         const { data: quoteData, error: quoteError } = await supabase
           .from('quotes')
           .insert({
             owner_id: user.id,
-            org_id: orgId,
             quote_number: quoteDraft.meta.quoteNumber,
             client_name: quoteDraft.meta.clientName,
             client_email: quoteDraft.meta.clientEmail,

@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuoteActions } from '@/hooks/useQuoteActions';
 import { useQuoteStore } from '@/store/useQuoteStore';
-import { useApp } from '@/contexts/AppContext';
 
 interface SavedQuote {
   id: string;
@@ -29,27 +28,16 @@ export function Quotes() {
   const navigate = useNavigate();
   const { loadQuoteForEditing } = useQuoteActions();
   const { setDraft } = useQuoteStore();
-  const { orgId } = useApp();
 
   useEffect(() => {
-    if (orgId) {
-      loadQuotes();
-    }
-  }, [orgId]);
+    loadQuotes();
+  }, []);
 
   const loadQuotes = async () => {
-    if (!orgId) {
-      console.log('No orgId available, skipping quote loading');
-      setLoading(false);
-      return;
-    }
-
     try {
-      console.log('Loading quotes for org_id:', orgId);
       const { data, error } = await supabase
         .from('quotes')
         .select('*')
-        .eq('org_id', orgId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -62,7 +50,6 @@ export function Quotes() {
         return;
       }
 
-      console.log('Loaded quotes:', data?.length || 0);
       setQuotes(data || []);
     } catch (error) {
       console.error('Error loading quotes:', error);
