@@ -20,6 +20,8 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Modern layout with sidebar and header - cache refresh
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
