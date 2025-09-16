@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppProvider } from "./contexts/AppContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { Navbar } from "./components/Navbar";
+import { AppLayout } from "./components/AppLayout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
@@ -28,45 +28,58 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Navbar />
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               
-              {/* Protected Routes */}
+              {/* Protected Routes with Layout */}
               <Route path="/" element={
                 <ProtectedRoute>
-                  <Index />
+                  <AppLayout>
+                    <Index />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               <Route path="/home" element={
                 <ProtectedRoute>
-                  <Home />
+                  <AppLayout>
+                    <Home />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               <Route path="/inbox" element={
                 <ProtectedRoute>
-                  <Inbox />
+                  <AppLayout>
+                    <Inbox />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               <Route path="/inbox/:id" element={
                 <ProtectedRoute>
-                  <InboxDetail />
+                  <AppLayout>
+                    <InboxDetail />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               <Route path="/quotes" element={
                 <ProtectedRoute>
-                  <Quotes />
+                  <AppLayout>
+                    <Quotes />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               <Route path="/quote/:id" element={
                 <ProtectedRoute>
-                  <QuoteDetail />
+                  <AppLayout>
+                    <QuoteDetail />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               <Route path="/excel-settings" element={
                 <ProtectedRoute>
-                  <ExcelPriceSettings />
+                  <AppLayout>
+                    <ExcelPriceSettings />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               
