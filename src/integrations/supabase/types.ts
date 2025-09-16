@@ -196,6 +196,54 @@ export type Database = {
         }
         Relationships: []
       }
+      inbound_messages: {
+        Row: {
+          attachments: Json | null
+          detected_company: string | null
+          from_email: string | null
+          from_name: string | null
+          html_body: string | null
+          id: string
+          offer_id: string | null
+          org_id: string
+          received_at: string
+          status: string
+          subject: string | null
+          text_body: string | null
+          thread_id: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          detected_company?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          html_body?: string | null
+          id?: string
+          offer_id?: string | null
+          org_id: string
+          received_at?: string
+          status?: string
+          subject?: string | null
+          text_body?: string | null
+          thread_id?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          detected_company?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          html_body?: string | null
+          id?: string
+          offer_id?: string | null
+          org_id?: string
+          received_at?: string
+          status?: string
+          subject?: string | null
+          text_body?: string | null
+          thread_id?: string | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           created_at: string
