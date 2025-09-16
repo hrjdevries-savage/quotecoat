@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_settings: {
+        Row: {
+          address: string | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          logo_path: string | null
+          phone: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_path?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_path?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       email_attachments: {
         Row: {
           file_name: string | null
@@ -305,12 +341,86 @@ export type Database = {
         }
         Relationships: []
       }
+      work_instruction_steps: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          image_path: string | null
+          instruction_id: string
+          step_number: number
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          image_path?: string | null
+          instruction_id: string
+          step_number: number
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_path?: string | null
+          instruction_id?: string
+          step_number?: number
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_instruction_steps_instruction_id_fkey"
+            columns: ["instruction_id"]
+            isOneToOne: false
+            referencedRelation: "work_instructions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_instructions: {
+        Row: {
+          created_at: string
+          department: string
+          description: string | null
+          id: string
+          instruction_number: string
+          owner_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          description?: string | null
+          id?: string
+          instruction_number: string
+          owner_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          description?: string | null
+          id?: string
+          instruction_number?: string
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_instruction_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
