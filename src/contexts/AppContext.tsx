@@ -24,6 +24,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     const initializeOrgId = async () => {
+      // Check for admin bypass first
+      const isAdminBypass = localStorage.getItem('admin-bypass') === 'true';
+      
+      if (isAdminBypass) {
+        console.log('Admin bypass detected, using dummy org_id');
+        setOrgId('admin-org-id');
+        setLoading(false);
+        return;
+      }
+
       if (!user || !session) {
         setOrgId(null);
         setLoading(false);
